@@ -8,11 +8,14 @@ import cv2
 import face_recog
 import datetime
 import time
+import struct
+import pickle
+import socket
 
 class Live():
     def __init__(self):
         self.host = '0.0.0.0'
-        self.port = 5050
+        self.port = 5060
         self.debug = True
         self.current_time = 30 # second
         self.current_buffer = []
@@ -27,36 +30,34 @@ class Live():
 
         @app.route('/video_feed')
         def video_feed():
-            return Response(gen(face_recog.FaceRecog()),
+            return Response(gen(),
                             mimetype='multipart/x-mixed-replace; boundary=frame')
 
-        def gen(fr):
-            detector = object_detector.ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
-            #detector = ObjectDetector('mask_rcnn_inception_v2_coco_2018_01_28')
-            #detector = ObjectDetector('pet', label_file='data/pet_label_map.pbtxt')
-
-            #cam = camera.VideoCamera()
-            retry_cnt = 0
+        def gen():
+            host = 'localhost'
+            port = 5051
+            clientsocket=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            clientsocket.connect((host, port))
+            
+            data = ""
+            payload_size = struct.calcsize("H")
             while True:
-                try:
-                    frame, face_result_list = fr.get_frame_live()
-                    #frame = cam.get_frame()
-                    frame, obj_detect_dict = detector.detect_objects_live(frame)
-                    self.buffer_handle(face_result_list, obj_detect_dict)
+                while len(data) < payload_size:
+                    data += clientsocket.recv(4096)
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack("H", packed_msg_size)[0]
+                while len(data) < msg_size:
+                    data += clientsocket.recv(4096)
+                frame_data = data[:msg_size]
+                data = data[msg_size:]
+                frame=pickle.loads(frame_data)
 
-                    ret, jpg = cv2.imencode('.jpg', frame)
-                    jpg_bytes = jpg.tobytes()
+                ret, jpg = cv2.imencode('.jpg', frame)
+                jpg_bytes = jpg.tobytes()
 
-                    yield (b'--frame\r\n'
+                yield (b'--frame\r\n'
                            b'Content-Type: image/jpeg\r\n\r\n' + jpg_bytes + b'\r\n\r\n')
-                except:
-                    try:
-                        time.sleep(1)
-                        if retry_cnt > 5:
-                            break
-                        fr = face_recog.FaceRecog()
-                    except:
-                        retry_cnt += 1
 
         @app.route("/health", methods=["GET"])
         def health_check():

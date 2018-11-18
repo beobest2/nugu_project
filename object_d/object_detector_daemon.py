@@ -8,6 +8,10 @@ import tarfile
 import six.moves.urllib as urllib
 import time
 import face_recog
+import threading
+import socket
+import pickle
+import struct
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
@@ -203,35 +207,91 @@ class ObjectDetector():
         ret, jpg = cv2.imencode('.jpg', frame)
         return jpg.tobytes()
 
+class VideoRun():
+    def __init__(self):
+        self.frame = None
+        self.frame_cnt = 0
+        self.face_result_list = None
+        self.obj_dict = None
+
+    def run_video(self):
+        import camera
+        face_recog_m = face_recog.FaceRecog()
+        print(face_recog_m.known_face_names)
+
+        detector = ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
+
+        # Using OpenCV to capture from device 0. If you have trouble capturing
+        # from a webcam, comment the line below out and use a video file
+        # instead.
+        
+        def func(face_recog_m, detector):
+            print("start func")
+            retry_cnt = 0
+            while True:
+                try:
+                    frame, face_result_list = face_recog_m.get_frame_live()
+                    if len(face_result_list) > 0:
+                        print(face_result_list)
+                    frame, obj_dict = detector.detect_objects_live(frame)
+                    self.frame = frame
+                    self.fram_cnt += 1
+                    self.obj_dict = obj_dict
+                    self.face_result_list = face_result_list
+                except:
+                    try:
+                        face_recog_m = face_recog.FaceRecog()
+                    except:
+                        retry_cnt += 1
+                        if retry_cnt > 5:
+                            break
+
+        th = threading.Thread(target=func, args=(face_recog_m, detector))
+        th.daemon = True
+        th.start()
+        return th
+
+    
+    def run_server(self):
+        host = 'localhost'
+        port = 5051
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('Socket created')
+
+        s.bind((host, port))
+        print('Socket bind complete')
+        s.listen(10)
+        print('Socket now listening')
+        conn,addr=s.accept()
+        prev_fc = 0
+        while True:
+            if prev_fc < self.frame_cnt:
+                data = pickle.dumps(self.frame)
+                s.sendall(struct.pack("H", len(data))+data)
+                prev_fc = self.frame_cnt
+            else:
+                time.sleep(0.1)
+
+    def run(self):
+        print("???")
+        th = self.run_video()
+        print("rin video start")
+        while True:
+            if self.frame is not None:
+                print("server start")
+                break
+            else:
+                time.sleep(1)
+                print("None")
+        
+        self.run_server()
+        th.join()
+        print('finish')
+
 
 if __name__ == '__main__':
-    import camera
-    face_recog = face_recog.FaceRecog()
-    print(face_recog.known_face_names)
+    vr = VideoRun()
+    vr.run()
 
-    detector = ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
-    #detector = ObjectDetector('mask_rcnn_inception_v2_coco_2018_01_28')
-    #detector = ObjectDetector('pet', label_file='data/pet_label_map.pbtxt')
+    
 
-    # Using OpenCV to capture from device 0. If you have trouble capturing
-    # from a webcam, comment the line below out and use a video file
-    # instead.
-    cam = camera.VideoCamera()
-
-    print("press `q` to quit")
-    while True:
-        frame, face_result_list = face_recog.get_frame_live()
-        #frame = cv2.resize(frame, (640, 480))
-        frame, obj_dict = detector.detect_objects_live(frame)
-
-        # show the frame
-        cv2.imshow("Frame", frame)
-        key = cv2.waitKey(1) & 0xFF
-
-        # if the `q` key was pressed, break from the loop
-        if key == ord("q"):
-            break
-
-    # do a bit of cleanup
-    cv2.destroyAllWindows()
-    print('finish')
