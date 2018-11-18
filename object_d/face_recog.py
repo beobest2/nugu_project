@@ -122,7 +122,9 @@ class FaceRecog():
         self.process_this_frame = not self.process_this_frame
 
         # Display the results
+        result_list = []
         for (top, right, bottom, left), name in zip(self.face_locations, self.face_names):
+            result_list.append(((top, right, bottom, left), name))
             # Scale back up face locations since the frame we detected in was scaled to 1/4 size
             top *= 4
             right *= 4
@@ -137,7 +139,7 @@ class FaceRecog():
             font = cv2.FONT_HERSHEY_DUPLEX
             cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
 
-        return frame, self.face_names
+        return frame, result_list
 
     def get_jpg_bytes(self):
         frame = self.get_frame()

@@ -159,6 +159,41 @@ class ObjectDetector():
         print("%0.3f, %0.3f, %0.3f sec" % (time2 - time1, time3 - time2, time4 - time3))
 
         return frame
+    
+    def detect_objects_live(self, frame):
+        time1 = time.time()
+        # Grab a single frame of video
+
+        # Resize frame of video to 1/4 size for faster face recognition processing
+        #small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        small_frame = frame
+
+        # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
+        rgb_small_frame = small_frame[:, :, ::-1]
+
+        time2 = time.time()
+
+        # Only process every other frame of video to save time
+        if self.time_to_run_inference():
+            self.output_dict = self.run_inference(rgb_small_frame)
+
+        time3 = time.time()
+
+        _, rtn_dict = vis_util.visualize_boxes_and_labels_on_image_array_live(
+          frame,
+          self.output_dict['detection_boxes'],
+          self.output_dict['detection_classes'],
+          self.output_dict['detection_scores'],
+          self.category_index,
+          instance_masks=self.output_dict.get('detection_masks'),
+          use_normalized_coordinates=True,
+          line_thickness=3)
+
+        time4 = time.time()
+
+        print("%0.3f, %0.3f, %0.3f sec" % (time2 - time1, time3 - time2, time4 - time3))
+
+        return frame, rtn_dict
 
     def get_jpg_bytes(self):
         frame = self.get_frame()
