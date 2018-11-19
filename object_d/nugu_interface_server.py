@@ -128,9 +128,9 @@ class Live():
             return json.dumps(rtn)
 
         @app.route("/Watcher/not_exist", methods=["POST"])
-        """ watcher_answer_exist 함수의 분석 결과, 사용자가 존재하지 않으면 처리하는 함수 """
-
         def watcher_not_exist():
+            """ watcher_answer_exist 함수의 분석 결과, 사용자가 존재하지 않으면 처리하는 함수 """
+
             method = request.method
             if method != "POST":
                 rtn = {"result" : False, "message": "not supported method [%s]" % method}
