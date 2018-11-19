@@ -8,6 +8,7 @@ import cv2
 import face_recog
 import datetime
 import time
+import Socket
 
 class Live():
     def __init__(self):
@@ -70,7 +71,7 @@ class Live():
                     }
                 }
             return json.dumps(rtn)
-        
+
         @app.route("/show", methods=["GET"])
         def show():
             method = request.method
@@ -120,7 +121,7 @@ class Live():
     def buffer_handle(self, face_result_list, obj_detect_dict):
         now_date = datetime.datetime.now()
         now_str = now_date.strftime("%Y%m%d%H%M%S")
-        
+
         for face_result in face_result_list:
             face_corr = face_result[0]
             face_name = face_result[1]
@@ -139,7 +140,6 @@ class Live():
                     del self.current_buffer[0]
             except:
                 pass
-        
 
     def check_current_max(self, now_date):
         if len(self.current_buffer) > 0:

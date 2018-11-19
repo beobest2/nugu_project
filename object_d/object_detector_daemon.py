@@ -12,6 +12,8 @@ import threading
 import socket
 import pickle
 import struct
+import Socket
+import datetime
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
@@ -211,34 +213,56 @@ class VideoRun():
     def __init__(self):
         self.frame = None
         self.frame_cnt = 0
-        self.face_result_list = None
-        self.obj_dict = None
+        self.video_server_host = '0.0.0.0'
+        self.video_server_port = 5051
+
+        self.current_time = 3
+        self.current_buffer = []
 
     def run_video(self):
+        print("run video")
         import camera
         face_recog_m = face_recog.FaceRecog()
-        print(face_recog_m.known_face_names)
-
         detector = ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
+        print(face_recog_m.known_face_names)
 
         # Using OpenCV to capture from device 0. If you have trouble capturing
         # from a webcam, comment the line below out and use a video file
         # instead.
-        
+
         def func(face_recog_m, detector):
             print("start func")
             retry_cnt = 0
             while True:
+                now_date = datetime.datetime.now()
+                now_str = now_date.strftime("%Y%m%d%H%M%S")
                 try:
                     frame, face_result_list = face_recog_m.get_frame_live()
-                    if len(face_result_list) > 0:
-                        print(face_result_list)
-                    frame, obj_dict = detector.detect_objects_live(frame)
+                    frame, obj_detection_dict = detector.detect_objects_live(frame)
+                    for face_result in face_result_list:
+                        face_corr = face_result[0]
+                        face_name = face_result[1]
+                        print(face_name)
+                        self.current_buffer.append((now_date, face_name))
+                    for item in obj_detection_dict:
+                        try:
+                            obj_corr = item
+                            class_str = obj_detection_dict[item][0]
+                            class_list = class_str.split()
+                            obj_class = class_list[0][:-1]
+                            print(obj_class)
+                            obj_score = int(class_list[1][:-1])
+                            self.current_buffer.append((now_date, obj_class))
+                        except:
+                            pass
+                    origin_len = len(self.current_buffer)
+                    for _ in range(origin_len):
+                        if self.check_current_max(now_date):
+                            del self.current_buffer[0]
                     self.frame = frame
-                    self.fram_cnt += 1
-                    self.obj_dict = obj_dict
-                    self.face_result_list = face_result_list
-                except:
+                    self.frame_cnt += 1
+                except Exception as err:
+                    #print(err)
                     try:
                         face_recog_m = face_recog.FaceRecog()
                     except:
@@ -251,39 +275,76 @@ class VideoRun():
         th.start()
         return th
 
-    
-    def run_server(self):
-        host = 'localhost'
-        port = 5051
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        print('Socket created')
+    def check_current_max(self, now_date):
+        if len(self.current_buffer) > 0:
+            last_date_time = self.current_buffer[0][0]
+            if now_date - last_date_time >= datetime.timedelta(seconds=self.current_time):
+                return True
+        return False
 
-        s.bind((host, port))
-        print('Socket bind complete')
-        s.listen(10)
-        print('Socket now listening')
-        conn,addr=s.accept()
-        prev_fc = 0
+    def run_server(self):
+        WELCOME_MSG = b"+OK Welcome Video AI Server\r\n"
         while True:
-            if prev_fc < self.frame_cnt:
-                data = pickle.dumps(self.frame)
-                s.sendall(struct.pack("H", len(data))+data)
-                prev_fc = self.frame_cnt
-            else:
-                time.sleep(0.1)
+            s = Socket.Socket()
+            s.Bind(self.video_server_port)
+            sock = s.Accept()
+            print("Accept")
+            sock.SendMessage(WELCOME_MSG)
+            while True:
+                try:
+                    line = sock.Readline()
+                    line = line.decode('utf-8')
+                    cmd, param = line.strip().split() 
+                    print("CMD : ", cmd)
+                    print("param : ", param)
+                    ret_message = b"-ERR BAD\r\n"
+                    if cmd.upper() == "GET_CURRENT":
+                        ret_message = b'+OK good\r\n'
+                    elif cmd.upper() == "EXISTS":
+                        ret_message = b'+OK i dont  know\r\n'
+                        ret_message = self.EXISTS(obj=param)
+                    elif cmd.upper() == "SHOW_CURRENT":
+                        ret_message = b'+OK i dont  know\r\n'
+                        ret_message = self.SHOW_CURRENT()
+                    elif cmd == "QUIT":
+                        break
+                    print("CMD : **", cmd)
+                    sock.SendMessage(ret_message)
+                except Exception as err:
+                    print(err)
+                    break
+            try:
+                sock.close()
+                s.close()
+            except: pass
+
+    def EXISTS(self, obj=None):
+        if obj == None:
+            return b"+OK 1"
+        else:
+            return b"+OK 1"
+ 
+    def SHOW_CURRENT(self):
+        tmp_set = set([])
+        for obj in self.current_buffer:
+            tmp_set.add(obj[1])
+        rtn_str = ""
+        for item in tmp_set:
+            rtn_str += "%s, " % item
+        rtn_string = '+OK %s\r\n' % rtn_str
+        b = bytes(rtn_string, 'utf-8')
+        return b
 
     def run(self):
-        print("???")
         th = self.run_video()
-        print("rin video start")
+        print("run video AI start")
         while True:
             if self.frame is not None:
-                print("server start")
+                print("server is started")
                 break
             else:
                 time.sleep(1)
-                print("None")
-        
+
         self.run_server()
         th.join()
         print('finish')
@@ -292,6 +353,3 @@ class VideoRun():
 if __name__ == '__main__':
     vr = VideoRun()
     vr.run()
-
-    
-

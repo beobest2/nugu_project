@@ -11,11 +11,16 @@ import time
 import struct
 import pickle
 import socket
+import Socket
 
 class Live():
     def __init__(self):
         self.host = '0.0.0.0'
         self.port = 5060
+
+        self.video_host = '0.0.0.0'
+        self.video_port = 5051
+
         self.debug = True
         self.current_time = 30 # second
         self.current_buffer = []
@@ -30,15 +35,19 @@ class Live():
 
         @app.route('/video_feed')
         def video_feed():
-            return Response(gen(),
+            try:
+                resp = Response(gen(),
                             mimetype='multipart/x-mixed-replace; boundary=frame')
+            except:
+                return "video server connection fail"
+            return resp
 
         def gen():
-            host = 'localhost'
+            host = '0.0.0.0'
             port = 5051
             clientsocket=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             clientsocket.connect((host, port))
-            
+
             data = ""
             payload_size = struct.calcsize("H")
             while True:
@@ -71,17 +80,23 @@ class Live():
                     }
                 }
             return json.dumps(rtn)
-        
+
         @app.route("/show", methods=["GET"])
         def show():
             method = request.method
-            obj_list = self.show_current_all()
+            s = Socket.Socket()
+            s.Connect(self.video_host, self.video_port)
+            print(s.ReadMessage())
+            s.SendMessage(b"SHOW_CURRENT 0\r\n")
+            read_msg = s.ReadMessage()
+            s.SendMessage(b"QUIT 0\r\n")
+            s.close()
             rtn = {
                     "version": "2.0",
                     "resultCode": "200 OK",
                     "output": {
                       "result": True,
-                      "message": str(obj_list)
+                      "message": str(read_msg)
                     }
                 }
             return json.dumps(rtn)
