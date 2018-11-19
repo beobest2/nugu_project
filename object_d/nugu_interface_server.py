@@ -18,7 +18,7 @@ class Live():
         self.host = '0.0.0.0'
         self.port = 5060
 
-        self.video_host = '0.0.0.0'
+        self.video_host = '127.0.0.1'
         self.video_port = 5051
 
         self.debug = True
@@ -43,7 +43,7 @@ class Live():
             return resp
 
         def gen():
-            host = '0.0.0.0'
+            host = '127.0.0.1'
             port = 5051
             clientsocket=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             clientsocket.connect((host, port))
@@ -101,8 +101,10 @@ class Live():
                 }
             return json.dumps(rtn)
 
-        @app.route("/Watcher", methods=["POST"])
-        def watcher():
+        @app.route("/Watcher/answer.exist", methods=["POST"])
+        def watcher_answer_exist():
+            """ 'answer.exist' Action으로 들어온 질문을 처리하는 함수 """
+
             method = request.method
             if method != "POST":
                 rtn = {"result" : False, "message": "not supported method [%s]" % method}
@@ -111,9 +113,32 @@ class Live():
                 json_data = request.get_json()
             except:
                 json_data = None
-            database = ""
-            if json_data is not None:
-                database = json_data['database']
+
+            rtn = {
+                    "version": "2.0",
+                    "resultCode": "200 OK",
+                    "output": {
+                      "result": True,
+                      "disappear_time": 10
+                    }
+                }
+
+            # return한 값을 우선 nugu play builder에서 체크한 후, not_exist로 라우팅 할지말지 결정한다.
+            # disappear_time이 존재하지 않는다면 현재 사용자가 있는 것이므로, not_exist 라우터를 타지 않는다.   
+            return json.dumps(rtn)
+
+        @app.route("/Watcher/not_exist", methods=["POST"])
+        """ watcher_answer_exist 함수의 분석 결과, 사용자가 존재하지 않으면 처리하는 함수 """
+
+        def watcher_not_exist():
+            method = request.method
+            if method != "POST":
+                rtn = {"result" : False, "message": "not supported method [%s]" % method}
+
+            try:
+                json_data = request.get_json()
+            except:
+                json_data = None
 
             rtn = {
                     "version": "2.0",
@@ -124,7 +149,6 @@ class Live():
                     }
                 }
             return json.dumps(rtn)
-
 
     def show_current_all(self):
         rtn_set = set([])
