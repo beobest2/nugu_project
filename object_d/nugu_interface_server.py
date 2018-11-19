@@ -76,7 +76,7 @@ class Live():
                     "resultCode": "200 OK",
                     "output": {
                       "result": True,
-                      "message": "health chkeck success"
+                      "message": "health check success"
                     }
                 }
             return json.dumps(rtn)
