@@ -6,7 +6,6 @@ import numpy as np
 import tensorflow as tf
 import tarfile
 import six.moves.urllib as urllib
-import time
 import face_recog
 import threading
 import socket
@@ -14,6 +13,9 @@ import pickle
 import struct
 import Socket
 import datetime
+import time
+import sqlite3
+import queue
 
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
@@ -215,44 +217,138 @@ class VideoRun():
         self.frame_cnt = 0
         self.video_server_host = '0.0.0.0'
         self.video_server_port = 5051
+        
+        # DB ==>  CREATE TABLE TB (DATE INTEGER, CLASS TEXT, CORR TEXT); 
+        self.db_file_path = "./dbfile/db.dat"
+        # db 입력 간격(10초)
+        self.db_insert_term = 5
+        # db file 저장 시간 최대 범위(2 시간)
+        self.max_db_date = 60
+        
+        # img file 저장 최대 개수 (1000장)
+        self.max_img_file_cnt = 100
+        # img file 관리 큐
+        self.img_file_queue = queue.Queue()
+        # 이미지 파일 저장 경로
+        self.imwrite_path = "./imgfile/"
+        # 이미지 파일 저장 시간 간격(10분 마다)
+        self.img_write_gap = 60
 
+        # 3초 이내의 상황을 현재로 인지
         self.current_time = 3
         self.current_buffer = []
+
+    def insert_db(self, val):
+        sql = "INSERT INTO TB(DATE, CLASS, CORR) VALUES (?, ?, ?)"
+        try:
+            conn = sqlite3.connect(self.db_file_path)
+            cur = conn.cursor()
+            cur.execute(sql, val)
+            conn.commit()
+        except Exception as err:
+            print("??", err)
+        finally:
+            try:
+                conn.close()
+            except:
+                pass
+
+    def delete_outdated_data(self, now_date):
+        base_time = now_date - datetime.timedelta(seconds=self.max_db_date)
+        base_time_str = base_time.strftime("%Y%m%d%H%M%S")
+        sql = "DELETE FROM TB WHERE DATE <= %s" % base_time_str
+        print(sql)
+        try:
+            conn = sqlite3.connect(self.db_file_path)
+            cur = conn.cursor()
+            cur.execute(sql)
+            conn.commit()
+        except Exception as err:
+            print("??", err)
+        finally:
+            try:
+                conn.close()
+            except:
+                pass
 
     def run_video(self):
         print("run video")
         import camera
         face_recog_m = face_recog.FaceRecog()
         detector = ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
-        print(face_recog_m.known_face_names)
+        print("known faces: ", face_recog_m.known_face_names)
 
         # Using OpenCV to capture from device 0. If you have trouble capturing
         # from a webcam, comment the line below out and use a video file
         # instead.
 
         def func(face_recog_m, detector):
-            print("start func")
             retry_cnt = 0
+            
+            insert_flag = False
+            insert_priv_time = time.time()
+            
+            imwrite_flag = False
+            img_write_priv_time = time.time()
+            
             while True:
                 now_date = datetime.datetime.now()
                 now_str = now_date.strftime("%Y%m%d%H%M%S")
+                
+                curr_time = time.time()
+                # db 입력 간격 측정
+                if curr_time - insert_priv_time >= self.db_insert_term:
+                    insert_priv_time = curr_time
+                    insert_flag = True
+                else:
+                    insert_flag = False
+                
+                # 이미지 저장 간격 측정
+                if curr_time - img_write_priv_time >= self.img_write_gap:
+                    img_write_priv_time = curr_time
+                    imwrite_flag = True
+                else:
+                    imwrite_flag = False
+                
                 try:
                     frame, face_result_list = face_recog_m.get_frame_live()
                     frame, obj_detection_dict = detector.detect_objects_live(frame)
+                    if imwrite_flag:
+                        # 10 분마다 이미지파일 쓰기
+                        img_write_file = self.imwrite_path + now_str + ".jpg"
+                        cv2.imwrite(img_write_file, frame)
+                        self.img_file_queue.put(img_write_file)
+                        print("write img: ", img_write_file)
+
+                        # 이미지 파일 개수가 1000개 이상일때 삭제
+                        if self.img_file_queue.qsize() > self.max_img_file_cnt:
+                            del_img_file = self.img_file_queue.get()
+                            os.remove(del_img_file)
+                            print("remove img: ", del_img_file)
+
+                        # DB에서 2시간 이전의 데이터 삭제
+                        self.delete_outdated_data(now_date)
+
                     for face_result in face_result_list:
                         face_corr = face_result[0]
                         face_name = face_result[1]
-                        print(face_name)
                         self.current_buffer.append((now_date, face_name))
+                        if insert_flag:
+                            val = (now_str, face_name, str(face_corr))
+                            self.insert_db(val)
+                            print("insert ", val)
                     for item in obj_detection_dict:
                         try:
                             obj_corr = item
                             class_str = obj_detection_dict[item][0]
                             class_list = class_str.split()
                             obj_class = class_list[0][:-1]
-                            print(obj_class)
                             obj_score = int(class_list[1][:-1])
                             self.current_buffer.append((now_date, obj_class))
+                            if insert_flag:
+                                val = (now_str, obj_class, str(obj_corr))
+                                self.insert_db(val)
+                                print("insert ", val)
                         except:
                             pass
                     origin_len = len(self.current_buffer)
@@ -262,7 +358,7 @@ class VideoRun():
                     self.frame = frame
                     self.frame_cnt += 1
                 except Exception as err:
-                    #print(err)
+                    print(err)
                     try:
                         face_recog_m = face_recog.FaceRecog()
                     except:
