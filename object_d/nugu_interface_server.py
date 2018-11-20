@@ -54,7 +54,7 @@ class Live():
                 pass
         rtn_val = ""
         print("ERRRRRRR!!! : ", read_msg)
-        if read_msg[0]:
+        if read_msg[0] and len(read_msg) == 2:
             rtn_val = read_msg[1]
         return str(rtn_val)
 
@@ -265,7 +265,7 @@ class Live():
                      """
                     read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
                     rtn_list = read_msg.strip().split(",")
-                    if len(rtn_list) > 0:
+                    if len(rtn_list) > 0 and rtn_list[0] != "":
                         detected_list = self.detected_list_match(rtn_list)
                         all = ",".join(detected_list)
                         disappear_time = TARGET_ALL
