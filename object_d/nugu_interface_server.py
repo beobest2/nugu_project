@@ -101,6 +101,14 @@ class Live():
                 }
             return json.dumps(rtn)
 
+        @app.route("/Watcher/initAction", methods=["POST"])
+        def watcher_init_action():
+            """ 사용자 발화시 최초 접속하는 부분 """
+            print("[initAction] : {}".format(request.get_json()))
+            print("============================================")
+
+            return json.dumps(request.get_json())
+
         @app.route("/Watcher/answer.exist", methods=["POST"])
         def watcher_answer_exist():
             """ 'answer.exist' Action으로 들어온 질문을 처리하는 함수 """
@@ -111,20 +119,31 @@ class Live():
 
             try:
                 json_data = request.get_json()
+                print("[answer.exist] json_data : {}".format(json_data))
             except:
                 json_data = None
 
+            """ FIXME :  disappear_time에 watched가 마지막으로 존재했던 시간을 할당
+            1. watched는 json_data['parameters']['watched']['value'] 에 담겨있음
+            2. 이는 현재 화면에서 watched가 인식되지 않을 경우에만 처리해주면 됨
+            3. 현재 화면에서 인식 가능한 경우에는 disappear_time 에 0 을 주면 됨
+            4. 128 ~ 130 번째 줄 코드를 수정하면 됨. 현재는 테스트용으로 1과 0중 하나가 들어가게 해놓았음 """
+            import random
+            disappear_time = random.randrange(0,2)
+            #disappear_time = 1
             rtn = {
                     "version": "2.0",
-                    "resultCode": "200 OK",
+                    "resultCode": "OK",
                     "output": {
-                      "result": True,
-                      "disappear_time": 10
+                        "result": True,
+                        "disappear_time": disappear_time
                     }
                 }
 
             # return한 값을 우선 nugu play builder에서 체크한 후, not_exist로 라우팅 할지말지 결정한다.
-            # disappear_time이 존재하지 않는다면 현재 사용자가 있는 것이므로, not_exist 라우터를 타지 않는다.   
+            # disappear_time이 존재하지 않는다면 현재 사용자가 있는 것이므로, not_exist 라우터를 타지 않는다.
+            print("[answer.exist] json.dumps(rtn) : {}".format(json.dumps(rtn)))
+            print("============================================")
             return json.dumps(rtn)
 
         @app.route("/Watcher/not_exist", methods=["POST"])
@@ -137,17 +156,26 @@ class Live():
 
             try:
                 json_data = request.get_json()
+                print("[not_exist] json_data : {}".format(json_data))
             except:
                 json_data = None
 
+            """ FIXME : disappear_time에 앞에서 처리한 값을 그대로 넣어준다 
+            1. disappear_time은 json_data['action']['parameters']['disappear_time']['value'] 에 담겨있음
+            2. 167 ~ 168 줄을 수정하면 됨. 현재는 테스트 용으로 임의의 시간을 넣어놨음
+            """
+            import random
+            disappear_time = "{}시 {}분".format(random.randrange(0,24), random.randrange(0,60))
             rtn = {
                     "version": "2.0",
-                    "resultCode": "200 OK",
+                    "resultCode": "OK",
                     "output": {
-                      "result": True,
-                      "disappear_time": 10
+                        "result": True,
+                        "disappear_time": disappear_time
                     }
                 }
+
+            print("[not_exist] json.dumps(rtn) : {}".format(json.dumps(rtn)))
             return json.dumps(rtn)
 
     def show_current_all(self):
