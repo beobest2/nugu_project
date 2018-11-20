@@ -338,7 +338,7 @@ class Live():
                         else:
                             disappear_time = TARGET_NOT_EXIST
                             read_msg = self.LAST_SHOW(target)
-                            if read_msg.strip() == "0,0":
+                            if read_msg == "0,0":
                                 disappear_time = TARGET_EXIST_IN_1
                             elif read_msg is None:
                                 disappear_time = TARGET_NOT_EXIST_AT_ALL
