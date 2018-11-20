@@ -82,7 +82,7 @@ class Live():
         return date
 
     def LAST_SHOW(self, target):
-        print("!!!!!!! LAST SHOW")
+        print("!!!!!!! LAST SHOW : ", target)
         rtn_str = "0,0"
         last_date_str = self.last_check_db(target)
         if last_date_str is None:
@@ -90,7 +90,7 @@ class Live():
         else:
             # calculate time delta
             last_date = datetime.datetime.strptime(str(last_date_str), '%Y%m%d%H%M%S')
-            time_delta = self.now_date - last_date
+            time_delta = datetime.datetime.now() - last_date
             h, rem = divmod(time_delta.seconds, 3600)
             m, s = divmod(rem, 60)
             rtn_str = "%s,%s" % (h, m)
