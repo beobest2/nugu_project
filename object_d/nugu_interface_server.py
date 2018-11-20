@@ -48,7 +48,10 @@ class Live():
                 s.close()
             except:
                 pass
-        return str(read_msg)
+        rtn_val = ""
+        if read_msg[0]:
+            rtn_val = read_msg[1]
+        return str(rtn_val)
 
     def detected_list_match(self, rtn_list):
         for idx, item in enumerate(rtn_list):
@@ -166,61 +169,126 @@ class Live():
             import random
             disappear_time = random.choice([0, "13시 13분"])  # 0인 경우는 인식 가능, 후자는 인식 불가시 사라진 시간
 
+            k_list = json_data['action']['parameters'].keys()
+            if "hour_" in k_list or "min_" in k_list:
+                # 과거
+                hour_val = None
+                min_val = None
+                if "hour_" in k_list:
+                    hour_val = json_data['action']['parameters']['hour_']
+                if "min_" in k_list:
+                    mon_val = json_data['action']['parameters']['min_']
 
-            if watched == "UNKNOWN":
-                """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
-                - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
-                - disappear_time은 1을 할당  
-                - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
-                read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
-                rtn_list = read_msg.split(",")
-                if "UNKNOWN" in rtn_list:
-                    # 낯선 사람 지금 존재
-                    disappear_time = UNKNOWN_EXIST
-                else:
-                    disappear_time = UNKNOWN_NOT_EXIST
-                    unknown = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
-
-            elif watched == "ALL":
-                """ FIXME : watched가 'ALL'로 전달되었을때 처리
-                - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
-                    - ex) 현우, 해준, 컴퓨터, 강아지가 있을 경우
-                    - detected_list = ["현우","해준","컴퓨터","강아지"]
-                    - all = ",".join(detected_list)
-                - disappear_time은 10을 할당
-                 """
-                read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
-                rtn_list = read_msg.split(",")
-                detected_list = self.detected_list_match(rtn_list)
-                all = ",".join(detected_list)
-                disappear_time = TARGET_ALL
-            else:
-                # 특정 객체 질문
-                target = watched
-                if watched in self.watched_dict.keys():
-                    target = self.watched_dict[watched]
-
-                read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
-                rtn_list = read_msg.split(",")
-                if target in rtn_list:
-                    # 지금 존재
-                    disappear_time = TARGET_EXIST
-                else:
-                    disappear_time = TARGET_NOT_EXIST
-                    last_cmd = "LAST_SHOW %s\r\n" % target
-                    last_cmd_b = bytes(last_cmd, 'utf-8') 
-                    read_msg = self.communicate_video(last_cmd_b)
-                    if len(read_msg) == 0:
-                        # db에 없다
-                        pass
+                if watched == "UNKNOWN":
+                    """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
+                    - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
+                    - disappear_time은 1을 할당  
+                    - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
+                    read_msg = self.communicate_video(b"SHOW_PAST 0\r\n")
+                    rtn_list = read_msg.split(",")
+                    if "UNKNOWN" in rtn_list:
+                        # 낯선 사람 지금 존재
+                        disappear_time = UNKNOWN_EXIST
                     else:
-                        rtn_list = read_msg.strip().split(",")
-                        hour_ = int(rtn_list[0])
-                        min_ = int(rtn_list[1])
-                        if hour_ == 0:
-                            disappear_time = "%d분" % min_
+                        disappear_time = UNKNOWN_NOT_EXIST
+                        unknown = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
+
+                elif watched == "ALL":
+                    """ FIXME : watched가 'ALL'로 전달되었을때 처리
+                    - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
+                        - ex) 현우, 해준, 컴퓨터, 강아지가 있을 경우
+                        - detected_list = ["현우","해준","컴퓨터","강아지"]
+                        - all = ",".join(detected_list)
+                    - disappear_time은 10을 할당
+                     """
+                    read_msg = self.communicate_video(b"SHOW_PAST 0\r\n")
+                    rtn_list = read_msg.split(",")
+                    detected_list = self.detected_list_match(rtn_list)
+                    all = ",".join(detected_list)
+                    disappear_time = TARGET_ALL
+                else:
+                    # 특정 객체 질문
+                    target = watched
+                    if watched in self.watched_dict.keys():
+                        target = self.watched_dict[watched]
+
+                    read_msg = self.communicate_video(b"SHOW_PAST 0\r\n")
+                    rtn_list = read_msg.split(",")
+                    if target in rtn_list:
+                        # 지금 존재
+                        disappear_time = TARGET_EXIST
+                    else:
+                        disappear_time = TARGET_NOT_EXIST
+                        last_cmd = "LAST_SHOW %s\r\n" % target
+                        last_cmd_b = bytes(last_cmd, 'utf-8') 
+                        read_msg = self.communicate_video(last_cmd_b)
+                        if len(read_msg) == 0:
+                            # db에 없다
+                            pass
                         else:
-                            disappear_time = "%d시%d분" % (hour_, min_)
+                            rtn_list = read_msg.strip().split(",")
+                            hour_ = int(rtn_list[0])
+                            min_ = int(rtn_list[1])
+                            if hour_ == 0:
+                                disappear_time = "%d분" % min_
+                            else:
+                                disappear_time = "%d시%d분" % (hour_, min_)
+            else:
+                # 현재
+                if watched == "UNKNOWN":
+                    """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
+                    - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
+                    - disappear_time은 1을 할당  
+                    - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
+                    read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
+                    rtn_list = read_msg.split(",")
+                    if "UNKNOWN" in rtn_list:
+                        # 낯선 사람 지금 존재
+                        disappear_time = UNKNOWN_EXIST
+                    else:
+                        disappear_time = UNKNOWN_NOT_EXIST
+                        unknown = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
+
+                elif watched == "ALL":
+                    """ FIXME : watched가 'ALL'로 전달되었을때 처리
+                    - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
+                        - ex) 현우, 해준, 컴퓨터, 강아지가 있을 경우
+                        - detected_list = ["현우","해준","컴퓨터","강아지"]
+                        - all = ",".join(detected_list)
+                    - disappear_time은 10을 할당
+                     """
+                    read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
+                    rtn_list = read_msg.split(",")
+                    detected_list = self.detected_list_match(rtn_list)
+                    all = ",".join(detected_list)
+                    disappear_time = TARGET_ALL
+                else:
+                    # 특정 객체 질문
+                    target = watched
+                    if watched in self.watched_dict.keys():
+                        target = self.watched_dict[watched]
+
+                    read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
+                    rtn_list = read_msg.split(",")
+                    if target in rtn_list:
+                        # 지금 존재
+                        disappear_time = TARGET_EXIST
+                    else:
+                        disappear_time = TARGET_NOT_EXIST
+                        last_cmd = "LAST_SHOW %s\r\n" % target
+                        last_cmd_b = bytes(last_cmd, 'utf-8') 
+                        read_msg = self.communicate_video(last_cmd_b)
+                        if len(read_msg) == 0:
+                            # db에 없다
+                            pass
+                        else:
+                            rtn_list = read_msg.strip().split(",")
+                            hour_ = int(rtn_list[0])
+                            min_ = int(rtn_list[1])
+                            if hour_ == 0:
+                                disappear_time = "%d분" % min_
+                            else:
+                                disappear_time = "%d시%d분" % (hour_, min_)
 
             rtn = {
                     "version": "2.0",
