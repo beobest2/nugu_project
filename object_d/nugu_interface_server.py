@@ -145,6 +145,7 @@ class Live():
             TARGET_ALL = 10
             TARGET_ALL_NOT_EXIST = -10
             TARGET_NOT_EXIST = "%d시%d분"
+            TARGET_NOT_EXIST_AT_ALL = 404
 
             try:
                 json_data = request.get_json()
@@ -285,10 +286,11 @@ class Live():
                     else:
                         disappear_time = TARGET_NOT_EXIST
                         last_cmd = "LAST_SHOW %s\r\n" % target
-                        last_cmd_b = bytes(last_cmd, 'utf-8') 
+                        print("!!!!!!!!!!!!", last_cmd)
+                        last_cmd_b = bytes(last_cmd, 'utf-8')
                         read_msg = self.communicate_video(last_cmd_b)
-                        if read_msg.strip() == "0,0":
-                            disappear_time = "기록시작"
+                        if read_msg.strip() == "0,0" or len(read_msg) == 0:
+                            disappear_time = TARGET_NOT_EXIST_AT_ALL
                         else:
                             print("read_msg: ", read_msg)
                             rtn_list = read_msg.strip().split(",")
