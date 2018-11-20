@@ -282,7 +282,9 @@ class Live():
                             # db에 없다
                             pass
                         else:
+                            print("read_msg: ", read_msg)
                             rtn_list = read_msg.strip().split(",")
+                            print("rtn_list: ", rtn_list)
                             hour_ = int(rtn_list[0])
                             min_ = int(rtn_list[1])
                             if hour_ == 0:
