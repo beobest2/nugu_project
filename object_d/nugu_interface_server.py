@@ -403,5 +403,5 @@ class Live():
 
 if __name__ == '__main__':
     lv = Live()
-    #lv.run()
-    print(lv.LAST_SHOW('tie'))
+    v.run()
+    #print(lv.LAST_SHOW('tie'))
