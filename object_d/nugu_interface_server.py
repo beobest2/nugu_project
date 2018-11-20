@@ -178,6 +178,35 @@ class Live():
             print("[not_exist] json.dumps(rtn) : {}".format(json.dumps(rtn)))
             return json.dumps(rtn)
 
+        @app.route("/Watcher/answer.capture", methods=["POST"])
+        def watcher_answer_capture():
+            """ watcher_answer_exist 함수의 분석 결과, 사용자가 존재하지 않으면 처리하는 함수 """
+
+            method = request.method
+            if method != "POST":
+                rtn = {"result": False, "message": "not supported method [%s]" % method}
+
+            try:
+                json_data = request.get_json()
+                print("[answer_capture] json_data : {}".format(json_data))
+            except:
+                json_data = None
+
+            """ FIXME : 사진을 이메일로 전송한다.
+            이메일 주소는 임의로 등록한 값이며, 서버단에서 설정파일등을 통해 처리
+            메일을 보낸후 resultCode를 OK로 보내주면 된다.
+            메일 전송이 실패한 경우는 아직 처리하지 않는다.
+            """
+            rtn = {
+                "resultCode": "OK"
+            }
+
+            print("[answer_capture] json.dumps(rtn) : {}".format(json.dumps(rtn)))
+            print("============================================")
+            return json.dumps(rtn)
+
+
+
     def show_current_all(self):
         rtn_set = set([])
         for item in self.current_buffer:
