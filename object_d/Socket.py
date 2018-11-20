@@ -170,7 +170,7 @@ class Socket(object) :
 
     def ReadMessage(self) :
         line = self.Readline()
-        print(line)
+        print("!!! READ MSG :", line)
         line = str(line, 'utf-8')
         (code, msg) = line.split(" ", 1)
 

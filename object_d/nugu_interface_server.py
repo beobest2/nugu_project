@@ -12,6 +12,7 @@ import struct
 import pickle
 import socket
 import Socket
+import sqlite3
 
 class Live():
     def __init__(self):
@@ -27,6 +28,8 @@ class Live():
         self.app = Flask(__name__)
         self.init_flask(self.app)
 
+        self.db_file_path = "./dbfile/db.dat"
+
         self.known_dict = {"HYUNWOO" : "현우", "HAEJOON" : "해준", "person" : "사람", "dog" :
                 "강아지", "cat" : "고양이", "tie": "넥타이", "laptop" : "노트북", "tv" : "티비",
                 "cellphone" : "핸드폰"}
@@ -38,22 +41,14 @@ class Live():
         print(cmd)
         read_msg = "-ERR fail to connect video server\r\n"
         try:
-            print(1)
             s = Socket.Socket()
-            print(2)
             s.Connect(self.video_host, self.video_port)
-            print(3)
             s.ReadMessage() # welcome msg
-            print(4)
             s.SendMessage(cmd)
-            print(5)
             read_msg = s.ReadMessage()
-            print(6)
             s.SendMessage(b"QUIT 0\r\n")
-            print(7)
         except Exception as err:
             print(str(err))
-
             pass
         finally:
             try:
@@ -66,6 +61,41 @@ class Live():
             rtn_val = read_msg[1]
         # 연결 실패시 빈문자열
         return str(rtn_val)
+
+    def last_check_db(self, target):
+        sql = "SELECT DATE FROM TB WHERE CLASS = '%s' ORDER BY DATE DESC LIMIT 1" % target
+        date = None
+        try:
+            conn = sqlite3.connect(self.db_file_path)
+            cur = conn.cursor()
+            cur.execute(sql)
+            rows = cur.fetchall()
+            for row in rows:
+                date = row[0]
+        except Exception as err:
+            print("??", err)
+        finally:
+            try:
+                conn.close()
+            except:
+                pass
+        return date
+
+    def LAST_SHOW(self, target):
+        print("!!!!!!! LAST SHOW")
+        rtn_str = "0,0"
+        last_date_str = self.last_check_db(target)
+        if last_date_str is None:
+            pass
+        else:
+            # calculate time delta
+            last_date = datetime.datetime.strptime(str(last_date_str), '%Y%m%d%H%M%S')
+            time_delta = self.now_date - last_date
+            h, rem = divmod(time_delta.seconds, 3600)
+            m, s = divmod(rem, 60)
+            rtn_str = "%s,%s" % (h, m)
+        rtn_str += "\r\n"
+        return rtn_str
 
     def detected_list_match(self, rtn_list):
         for idx, item in enumerate(rtn_list):
@@ -302,10 +332,7 @@ class Live():
                             disappear_time = TARGET_EXIST
                         else:
                             disappear_time = TARGET_NOT_EXIST
-                            last_cmd = "LAST_SHOW %s\r\n" % target
-                            print("!!!!!!!!!!!!", last_cmd)
-                            last_cmd_b = bytes(last_cmd, 'utf-8')
-                            read_msg = self.communicate_video(last_cmd_b)
+                            read_msg = self.LAST_SHOW(target)
                             if read_msg.strip() == "0,0":
                                 disappear_time = TARGET_NOT_EXIST_AT_ALL
                             elif read_msg == "":
