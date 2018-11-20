@@ -27,9 +27,12 @@ class Live():
         self.app = Flask(__name__)
         self.init_flask(self.app)
 
-        self.known_dict = {"HYUNWOO" : "현우", "HAEJOON" : "해준", "person" : "사람", "dog" : "강아지", "cat" : "고양이"}
+        self.known_dict = {"HYUNWOO" : "현우", "HAEJOON" : "해준", "person" : "사람", "dog" :
+                "강아지", "cat" : "고양이", "tie": "넥타이", "laptop" : "노트북", "tv" : "티비",
+                "cellphone" : "핸드폰"}
         self.watched_dict = {"현우" : "HYUNWOO", "해준" : "HAEJOON", "사람" : "person", "강아지" :
-                "dog", "고양이" : "cat", "야옹이" : "cat", "냐옹이" : "cat", "멍멍이" : "cat"}
+                "dog", "고양이" : "cat", "야옹이" : "cat", "냐옹이" : "cat", "멍멍이" : "cat",
+                "넥타이" : "tie"}
 
     def communicate_video(self, cmd):
         print(cmd)
@@ -42,7 +45,7 @@ class Live():
             read_msg = s.ReadMessage()
             s.SendMessage(b"QUIT 0\r\n")
         except Exception as err:
-            print(err)
+            print(str(err))
             pass
         finally:
             try:

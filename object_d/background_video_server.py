@@ -62,7 +62,7 @@ class VideoRun():
                 try:
                     line = sock.Readline()
                     line = line.decode('utf-8')
-                    cmd, param = line.strip().split() 
+                    cmd, param = line.strip().split()
                     print("CMD : ", cmd)
                     print("param : ", param)
                     ret_message = b"-ERR BAD\r\n"
