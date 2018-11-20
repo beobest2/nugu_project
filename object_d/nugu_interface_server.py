@@ -143,6 +143,7 @@ class Live():
             UNKNOWN_EXIST = 1
             TARGET_EXIST = 0
             TARGET_ALL = 10
+            TARGET_ALL_NOT_EXIST = -10
             TARGET_NOT_EXIST = "%d시%d분"
 
             try:
@@ -264,9 +265,12 @@ class Live():
                      """
                     read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
                     rtn_list = read_msg.strip().split(",")
-                    detected_list = self.detected_list_match(rtn_list)
-                    all = ",".join(detected_list)
-                    disappear_time = TARGET_ALL
+                    if len(rtn_list) > 0:
+                        detected_list = self.detected_list_match(rtn_list)
+                        all = ",".join(detected_list)
+                        disappear_time = TARGET_ALL
+                    else:
+                        disappear_time = TARGET_ALL_NOT_EXIST
                 else:
                     # 특정 객체 질문
                     target = watched
