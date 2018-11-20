@@ -186,7 +186,7 @@ class Live():
                     - disappear_time은 1을 할당  
                     - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
                     read_msg = self.communicate_video(b"SHOW_PAST 0\r\n")
-                    rtn_list = read_msg.split(",")
+                    rtn_list = read_msg.strip().split(",")
                     if "UNKNOWN" in rtn_list:
                         # 낯선 사람 지금 존재
                         disappear_time = UNKNOWN_EXIST
@@ -203,7 +203,7 @@ class Live():
                     - disappear_time은 10을 할당
                      """
                     read_msg = self.communicate_video(b"SHOW_PAST 0\r\n")
-                    rtn_list = read_msg.split(",")
+                    rtn_list = read_msg.strip().split(",")
                     detected_list = self.detected_list_match(rtn_list)
                     all = ",".join(detected_list)
                     disappear_time = TARGET_ALL
@@ -214,7 +214,7 @@ class Live():
                         target = self.watched_dict[watched]
 
                     read_msg = self.communicate_video(b"SHOW_PAST 0\r\n")
-                    rtn_list = read_msg.split(",")
+                    rtn_list = read_msg.strip().split(",")
                     if target in rtn_list:
                         # 지금 존재
                         disappear_time = TARGET_EXIST
@@ -242,7 +242,7 @@ class Live():
                     - disappear_time은 1을 할당  
                     - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
                     read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
-                    rtn_list = read_msg.split(",")
+                    rtn_list = read_msg.strip().split(",")
                     if "UNKNOWN" in rtn_list:
                         # 낯선 사람 지금 존재
                         disappear_time = UNKNOWN_EXIST
@@ -259,7 +259,7 @@ class Live():
                     - disappear_time은 10을 할당
                      """
                     read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
-                    rtn_list = read_msg.split(",")
+                    rtn_list = read_msg.strip().split(",")
                     detected_list = self.detected_list_match(rtn_list)
                     all = ",".join(detected_list)
                     disappear_time = TARGET_ALL
@@ -270,7 +270,7 @@ class Live():
                         target = self.watched_dict[watched]
 
                     read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
-                    rtn_list = read_msg.split(",")
+                    rtn_list = read_msg.strip().split(",")
                     if target in rtn_list:
                         # 지금 존재
                         disappear_time = TARGET_EXIST
