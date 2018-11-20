@@ -33,7 +33,7 @@ class VideoRun():
         # DB ==>  CREATE TABLE TB (DATE INTEGER, CLASS TEXT, CORR TEXT); 
         self.db_file_path = "./dbfile/db.dat"
         # db 입력 간격(10초)
-        self.db_insert_term = 5
+        self.db_insert_term = 30
         # db file 저장 시간 최대 범위(2 시간)
         self.max_db_date = 1200
 
