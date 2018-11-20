@@ -38,12 +38,19 @@ class Live():
         print(cmd)
         read_msg = "-ERR fail to connect video server\r\n"
         try:
+            print(1)
             s = Socket.Socket()
+            print(2)
             s.Connect(self.video_host, self.video_port)
+            print(3)
             s.ReadMessage() # welcome msg
+            print(4)
             s.SendMessage(cmd)
+            print(5)
             read_msg = s.ReadMessage()
+            print(6)
             s.SendMessage(b"QUIT 0\r\n")
+            print(7)
         except Exception as err:
             print(str(err))
 
