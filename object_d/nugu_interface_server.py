@@ -35,7 +35,8 @@ class Live():
                 "cellphone" : "핸드폰"}
         self.watched_dict = {"현우" : "HYUNWOO", "해준" : "HAEJOON", "사람" : "person", "강아지" :
                 "dog", "고양이" : "cat", "야옹이" : "cat", "냐옹이" : "cat", "멍멍이" : "cat",
-                "넥타이" : "tie"}
+                "넥타이" : "tie", "노트북" : "laptop", "티비": "tv", "텔레비젼" : "tv", "핸드폰" :
+                "cellphone"}
 
     def communicate_video(self, cmd):
         print(cmd)
