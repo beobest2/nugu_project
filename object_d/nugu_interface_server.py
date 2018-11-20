@@ -27,70 +27,82 @@ class Live():
         self.app = Flask(__name__)
         self.init_flask(self.app)
 
-    def init_flask(self, app):
+        self.known_dict = {"HYUNWOO" : "현우", "HAEJOON" : "해준", "person" : "사람", "dog" : "강아지", "cat" : "고양이"}
+        self.watched_dict = {"현우" : "HYUNWOO", "해준" : "HAEJOON", "사람" : "person", "강아지" :
+                "dog", "고양이" : "cat", "야옹이" : "cat", "냐옹이" : "cat", "멍멍이" : "cat"}
 
+    def communicate_video(self, cmd):
+        read_msg = "-ERR fail to connect video server\r\n"
+        try:
+            s = Socket.Socket()
+            s.Connect(self.video_host, self.video_port)
+            s.ReadMessage() # welcome msg
+            s.SendMessage(cmd)
+            read_msg = s.ReadMessage()
+            s.SendMessage(b"QUIT 0\r\n")
+        except Exception as err:
+            print("??", err)
+            pass
+        finally:
+            try:
+                s.close()
+            except:
+                pass
+        return str(read_msg)
+
+    def detected_list_match(self, rtn_list):
+        for idx, item in enumerate(rtn_list):
+            if item in self.known_dict.keys():
+                rtn_list[idx] = self.known_dict[item]
+        return rtn_list
+
+    def init_flask(self, app):
         @app.route('/')
         def index():
-            return render_template('index.html')
+            rtn_msg = "health check success"
+            rtn_bool = True
 
-        @app.route('/video_feed')
-        def video_feed():
-            try:
-                resp = Response(gen(),
-                            mimetype='multipart/x-mixed-replace; boundary=frame')
-            except:
-                return "video server connection fail"
-            return resp
-
-        def gen():
-            host = '127.0.0.1'
-            port = 5051
-            clientsocket=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-            clientsocket.connect((host, port))
-
-            data = ""
-            payload_size = struct.calcsize("H")
-            while True:
-                while len(data) < payload_size:
-                    data += clientsocket.recv(4096)
-                packed_msg_size = data[:payload_size]
-                data = data[payload_size:]
-                msg_size = struct.unpack("H", packed_msg_size)[0]
-                while len(data) < msg_size:
-                    data += clientsocket.recv(4096)
-                frame_data = data[:msg_size]
-                data = data[msg_size:]
-                frame=pickle.loads(frame_data)
-
-                ret, jpg = cv2.imencode('.jpg', frame)
-                jpg_bytes = jpg.tobytes()
-
-                yield (b'--frame\r\n'
-                           b'Content-Type: image/jpeg\r\n\r\n' + jpg_bytes + b'\r\n\r\n')
-
-        @app.route("/health", methods=["GET"])
-        def health_check():
-            method = request.method
             rtn = {
                     "version": "2.0",
                     "resultCode": "200 OK",
                     "output": {
-                      "result": True,
-                      "message": "health check success"
+                      "result": rtn_bool,
+                      "message": rtn_msg
+                    }
+                }
+            return json.dumps(rtn)
+
+        @app.route("/health", methods=["GET"])
+        def health_check():
+            """
+            health check : 시스템  정상 연결 확인
+            """
+            method = request.method
+            rtn_msg = "health check success"
+            rtn_bool = True
+            read_msg = ""
+            read_msg = self.communicate_video(b"HEALTH_CHECK 0\r\n")
+            if read_msg.strip() != "+OK 30":
+                rtn_bool = False
+                rtn_msg = "video server connection fail"
+
+            rtn = {
+                    "version": "2.0",
+                    "resultCode": "200 OK",
+                    "output": {
+                      "result": rtn_bool,
+                      "message": rtn_msg
                     }
                 }
             return json.dumps(rtn)
 
         @app.route("/show", methods=["GET"])
         def show():
+            """
+            테스트용 : 현재 검출된 객체들의 목록 반환
+            """
             method = request.method
-            s = Socket.Socket()
-            s.Connect(self.video_host, self.video_port)
-            print(s.ReadMessage())
-            s.SendMessage(b"SHOW_CURRENT 0\r\n")
-            read_msg = s.ReadMessage()
-            s.SendMessage(b"QUIT 0\r\n")
-            s.close()
+            read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
             rtn = {
                     "version": "2.0",
                     "resultCode": "200 OK",
@@ -117,13 +129,27 @@ class Live():
             if method != "POST":
                 rtn = {"result" : False, "message": "not supported method [%s]" % method}
 
+            # disappear value
+            DEFAULT = -99
+            UNKNOWN_NOT_EXIST = -1
+            UNKNOWN_EXIST = 1
+            TARGET_EXIST = 0
+            TARGET_ALL = 10
+            TARGET_NOT_EXIST = "%d시 %d분"
+
             try:
                 json_data = request.get_json()
                 print("[answer.exist] json_data : {}".format(json_data))
             except:
                 json_data = None
 
+            all = None
+            unknown = 0  # unknown default값. 뭐가 오든 상관없음
+            disappear_time = DEFAULT
+            watched = json_data['action']['parameters']['watched']['value']
+
             """ FIXME :  disappear_time에 watched가 마지막으로 존재했던 시간을 할당
+            질문 : 낯선 사람 있니 / 철수 있니
             1. watched는 json_data['action']['parameters']['watched']['value'] 에 담겨있음
             2. disappear_time은 현재 화면에서 watched가 인식되지 않을 경우에만 할당해주면 됨
             3. 현재 화면에서 인식 가능한 경우에는 disappear_time 에 0 을 주면 됨
@@ -140,68 +166,76 @@ class Live():
             import random
             disappear_time = random.choice([0, "13시 13분"])  # 0인 경우는 인식 가능, 후자는 인식 불가시 사라진 시간
 
-            """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
-            - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
-            - disappear_time은 1을 할당  
-            - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
 
-            unknown = 0  # unknown default값. 뭐가 오든 상관없음
-            watched = json_data['action']['parameters']['watched']['value']
             if watched == "UNKNOWN":
-                disappear_time = random.choice([1, -1])  # 특이객체 있을경우 1, 없을 경우 -1
-                if disappear_time == 1:  # 특이객체 있을경우 처리, 현재는 랜덤값을 넣어놓았음
-                    unknown = random.choice(["귀신", "도꺠비", "팀장님"])
+                """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
+                - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
+                - disappear_time은 1을 할당  
+                - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
+                read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
+                rtn_list = read_msg.split(",")
+                if "UNKNOWN" in rtn_list:
+                    # 낯선 사람 지금 존재
+                    disappear_time = UNKNOWN_EXIST
+                else:
+                    disappear_time = UNKNOWN_NOT_EXIST
+                    unknown = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
 
-            """ disappear_time 경우의수
-            -1 : 이상한사람에 대한 질문시, 이상한사람이 없을경우
-            1 : 이상한사람에 대한 질문시, 이상한사람이 있을경우
-            0 : 미리 등록해놓은 사람에 대한 질문시, 자리에 있을 경우
-            실제값 : 미리 등록해놓은 사람에 대한 질문시, 사라진 시간 ("xx시 xx분" 형태로 할당)
-            """
+            elif watched == "ALL":
+                """ FIXME : watched가 'ALL'로 전달되었을때 처리
+                - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
+                    - ex) 현우, 해준, 컴퓨터, 강아지가 있을 경우
+                    - detected_list = ["현우","해준","컴퓨터","강아지"]
+                    - all = ",".join(detected_list)
+                - disappear_time은 10을 할당
+                 """
+                read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
+                rtn_list = read_msg.split(",")
+                detected_list = self.detected_list_match(rtn_list)
+                all = ",".join(detected_list)
+                disappear_time = TARGET_ALL
+            else:
+                # 특정 객체 질문
+                target = watched
+                if watched in self.watched_dict.keys():
+                    target = self.watched_dict[watched]
+
+                read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
+                rtn_list = read_msg.split(",")
+                if target in rtn_list:
+                    # 지금 존재
+                    disappear_time = TARGET_EXIST
+                else:
+                    disappear_time = TARGET_NOT_EXIST
+                    last_cmd = "LAST_SHOW %s\r\n" % target
+                    last_cmd_b = bytes(last_cmd, 'utf-8') 
+                    read_msg = self.communicate_video(last_cmd_b)
+                    if len(read_msg) == 0:
+                        # db에 없다
+                        pass
+                    else:
+                        rtn_list = read_msg.strip().split(",")
+                        hour_ = int(rtn_list[0])
+                        min_ = int(rtn_list[1])
+                        if hour_ == 0:
+                            disappear_time = "%d분" % min_
+                        else:
+                            disappear_time = "%d시%d분" % (hour_, min_)
 
             rtn = {
                     "version": "2.0",
                     "resultCode": "OK",
                     "output": {
                         "result": True,
+                        "all": all,
                         "unknown": unknown,
                         "disappear_time": disappear_time
                     }
                 }
 
-            # return한 값을 우선 nugu play builder에서 체크한 후, not_exist로 라우팅 할지말지 결정한다.
-            # disappear_time이 존재하지 않는다면 현재 사용자가 있는 것이므로, not_exist 라우터를 타지 않는다.
             print("[answer.exist] json.dumps(rtn) : {}".format(json.dumps(rtn)))
             print("============================================")
             return json.dumps(rtn)
-
-        @app.route("/Watcher/not_exist", methods=["POST"])
-        def watcher_not_exist():
-            """ watcher_answer_exist 함수의 분석 결과, 사용자가 존재하지 않으면 처리하는 함수 """
-
-            method = request.method
-            if method != "POST":
-                rtn = {"result" : False, "message": "not supported method [%s]" % method}
-
-            try:
-                json_data = request.get_json()
-                print("[not_exist] json_data : {}".format(json_data))
-            except:
-                json_data = None
-
-            disappear_time = json_data['action']['parameters']['disappear_time']['value']  # "xx시 xx분" 형태로 할당
-            rtn = {
-                    "version": "2.0",
-                    "resultCode": "OK",
-                    "output": {
-                        "result": True,
-                        "disappear_time": disappear_time
-                    }
-                }
-
-            print("[not_exist] json.dumps(rtn) : {}".format(json.dumps(rtn)))
-            return json.dumps(rtn)
-
 
         @app.route("/Watcher/answer.capture", methods=["POST"])
         def watcher_answer_capture():
@@ -235,46 +269,6 @@ class Live():
             print("[answer_capture] json.dumps(rtn) : {}".format(json.dumps(rtn)))
             print("============================================")
             return json.dumps(rtn)
-
-
-
-    def show_current_all(self):
-        rtn_set = set([])
-        for item in self.current_buffer:
-            rtn_set.add(item[1])
-        return list(rtn_set)
-
-
-    def buffer_handle(self, face_result_list, obj_detect_dict):
-        now_date = datetime.datetime.now()
-        now_str = now_date.strftime("%Y%m%d%H%M%S")
-        
-        for face_result in face_result_list:
-            face_corr = face_result[0]
-            face_name = face_result[1]
-            self.current_buffer.append((now_date, face_name))
-            if self.check_current_max(now_date):
-                del self.current_buffer[0]
-        for item in obj_detect_dict:
-            try:
-                obj_corr = item
-                class_str = obj_detect_dict[item][0]
-                class_list = class_str.split()
-                obj_class = class_list[0][:-1]
-                obj_score = int(class_list[1][:-1])
-                self.current_buffer.append((now_date, obj_class))
-                if self.check_current_max(now_date):
-                    del self.current_buffer[0]
-            except:
-                pass
-        
-
-    def check_current_max(self, now_date):
-        if len(self.current_buffer) > 0:
-            last_date_time = self.current_buffer[0][0]
-            if now_date - last_date_time >= datetime.timedelta(minutes=self.current_time):
-                return True
-        return False
 
     def run(self):
         self.app.run(host=self.host, port=self.port, debug=self.debug)

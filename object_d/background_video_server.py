@@ -22,6 +22,274 @@ from object_detection.utils import visualization_utils as vis_util
 from object_detection.utils import ops as utils_ops
 
 
+class VideoRun():
+    def __init__(self):
+        self.frame = None
+        self.frame_cnt = 0
+        self.video_server_host = '0.0.0.0'
+        self.video_server_port = 5051
+        self.now_date = datetime.datetime.now()
+
+        # DB ==>  CREATE TABLE TB (DATE INTEGER, CLASS TEXT, CORR TEXT); 
+        self.db_file_path = "./dbfile/db.dat"
+        # db 입력 간격(10초)
+        self.db_insert_term = 5
+        # db file 저장 시간 최대 범위(2 시간)
+        self.max_db_date = 60
+
+        # img file 저장 최대 개수 (1000장)
+        self.max_img_file_cnt = 100
+        # img file 관리 큐
+        self.img_file_queue = queue.Queue()
+        # 이미지 파일 저장 경로
+        self.imwrite_path = "./imgfile/"
+        # 이미지 파일 저장 시간 간격(10분 마다)
+        self.img_write_gap = 60
+
+        # 3초 이내의 상황을 현재로 인지
+        self.current_time = 3
+        self.current_buffer = []
+
+    def run_server(self):
+        WELCOME_MSG = b"+OK Welcome Video AI Server\r\n"
+        while True:
+            s = Socket.Socket()
+            s.Bind(self.video_server_port)
+            sock = s.Accept()
+            print("Accept")
+            sock.SendMessage(WELCOME_MSG)
+            while True:
+                try:
+                    line = sock.Readline()
+                    line = line.decode('utf-8')
+                    cmd, param = line.strip().split() 
+                    print("CMD : ", cmd)
+                    print("param : ", param)
+                    ret_message = b"-ERR BAD\r\n"
+                    if cmd.upper() == "HEALTH_CHECK":
+                        ret_message = b'+OK 30\r\n'
+                    elif cmd.upper() == "SHOW_CURRENT":
+                        ret_message = b'+OK i dont  know\r\n'
+                        ret_message = self.SHOW_CURRENT()
+                    elif cmd.upper() == "LAST_SHOW":
+                        ret_message = b'+OK i dont know\r\n'
+                        ret_message = self.LAST_SHOW(param)
+                    elif cmd == "QUIT":
+                        break
+                    print("CMD : **", cmd)
+                    sock.SendMessage(ret_message)
+                except Exception as err:
+                    print(err)
+                    break
+            try:
+                sock.close()
+                s.close()
+            except: pass
+
+    def SHOW_CURRENT(self):
+        tmp_set = set([])
+        for obj in self.current_buffer:
+            tmp_set.add(obj[1])
+        rtn_lst = []
+        for item in tmp_set:
+            rtn_lst.append(item)
+        rtn_str = ",".join(rtn_lst)
+        rtn_string = '+OK %s\r\n' % rtn_str
+        b = bytes(rtn_string, 'utf-8')
+        return b
+
+    def LAST_SHOW(self, target):
+        rtn_str = "+OK"
+        last_date_str = self.last_check_db(target)
+        if last_date_str is None:
+            pass
+        else:
+            # calculate time delta
+            last_date = datetime.datetime.strptime(str(last_date_str), '%Y%m%d%H%M%S')
+            time_delta = self.now_date - last_date
+            h, rem = divmod(time_delta.seconds, 3600)
+            m, s = divmod(rem, 60)
+            rtn_str = "+OK %s,%s" % (h, m)
+        rtn_str += "\r\n"
+        b = bytes(rtn_str, 'utf-8')
+        return b
+
+
+    def run_video(self):
+        print("run video")
+        import camera
+        face_recog_m = face_recog.FaceRecog()
+        detector = ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
+        print("known faces: ", face_recog_m.known_face_names)
+
+        # Using OpenCV to capture from device 0. If you have trouble capturing
+        # from a webcam, comment the line below out and use a video file
+        # instead.
+
+        def func(face_recog_m, detector):
+            retry_cnt = 0
+
+            insert_flag = False
+            insert_priv_time = time.time()
+
+            imwrite_flag = False
+            img_write_priv_time = time.time()
+
+            while True:
+                now_date = datetime.datetime.now()
+                self.now_date = now_date
+                now_str = now_date.strftime("%Y%m%d%H%M%S")
+
+                curr_time = time.time()
+                # db 입력 간격 측정
+                if curr_time - insert_priv_time >= self.db_insert_term:
+                    insert_priv_time = curr_time
+                    insert_flag = True
+                else:
+                    insert_flag = False
+
+                # 이미지 저장 간격 측정
+                if curr_time - img_write_priv_time >= self.img_write_gap:
+                    img_write_priv_time = curr_time
+                    imwrite_flag = True
+                else:
+                    imwrite_flag = False
+
+                try:
+                    frame, face_result_list = face_recog_m.get_frame_live()
+                    frame, obj_detection_dict = detector.detect_objects_live(frame)
+                    if imwrite_flag:
+                        # 10 분마다 이미지파일 쓰기
+                        img_write_file = self.imwrite_path + now_str + ".jpg"
+                        cv2.imwrite(img_write_file, frame)
+                        self.img_file_queue.put(img_write_file)
+                        print("write img: ", img_write_file)
+
+                        # 이미지 파일 개수가 1000개 이상일때 삭제
+                        if self.img_file_queue.qsize() > self.max_img_file_cnt:
+                            del_img_file = self.img_file_queue.get()
+                            os.remove(del_img_file)
+                            print("remove img: ", del_img_file)
+
+                        # DB에서 2시간 이전의 데이터 삭제
+                        self.delete_outdated_data(now_date)
+
+                    for face_result in face_result_list:
+                        face_corr = face_result[0]
+                        face_name = face_result[1]
+                        self.current_buffer.append((now_date, face_name))
+                        if insert_flag:
+                            val = (now_str, face_name, str(face_corr))
+                            self.insert_db(val)
+                            print("insert ", val)
+                    for item in obj_detection_dict:
+                        try:
+                            obj_corr = item
+                            class_str = obj_detection_dict[item][0]
+                            class_list = class_str.split()
+                            obj_class = class_list[0][:-1]
+                            obj_score = int(class_list[1][:-1])
+                            self.current_buffer.append((now_date, obj_class))
+                            if insert_flag:
+                                val = (now_str, obj_class, str(obj_corr))
+                                self.insert_db(val)
+                                print("insert ", val)
+                        except:
+                            pass
+                    origin_len = len(self.current_buffer)
+                    for _ in range(origin_len):
+                        if self.check_current_max(now_date):
+                            del self.current_buffer[0]
+                    self.frame = frame
+                    self.frame_cnt += 1
+                except Exception as err:
+                    print(err)
+                    try:
+                        face_recog_m = face_recog.FaceRecog()
+                    except:
+                        retry_cnt += 1
+                        if retry_cnt > 5:
+                            break
+
+        th = threading.Thread(target=func, args=(face_recog_m, detector))
+        th.daemon = True
+        th.start()
+        return th
+
+    def check_current_max(self, now_date):
+        if len(self.current_buffer) > 0:
+            last_date_time = self.current_buffer[0][0]
+            if now_date - last_date_time >= datetime.timedelta(seconds=self.current_time):
+                return True
+        return False
+
+
+    def last_check_db(self, target):
+        sql = "SELECT DATE FROM TB WHERE CLASS = '%s' ORDER BY DATE DESC LIMIT 1" % target
+        date = None
+        try:
+            conn = sqlite3.connect(self.db_file_path)
+            cur = conn.cursor()
+            cur.execute(sql)
+            rows = cur.fetchall()
+            for row in rows:
+                date = row[0]
+        except Exception as err:
+            print("??", err)
+        finally:
+            try:
+                conn.close()
+            except:
+                pass
+        return date
+
+    def insert_db(self, val):
+        sql = "INSERT INTO TB(DATE, CLASS, CORR) VALUES (?, ?, ?)"
+        try:
+            conn = sqlite3.connect(self.db_file_path)
+            cur = conn.cursor()
+            cur.execute(sql, val)
+            conn.commit()
+        except Exception as err:
+            print("??", err)
+        finally:
+            try:
+                conn.close()
+            except:
+                pass
+
+    def delete_outdated_data(self, now_date):
+        base_time = now_date - datetime.timedelta(seconds=self.max_db_date)
+        base_time_str = base_time.strftime("%Y%m%d%H%M%S")
+        sql = "DELETE FROM TB WHERE DATE <= %s" % base_time_str
+        print(sql)
+        try:
+            conn = sqlite3.connect(self.db_file_path)
+            cur = conn.cursor()
+            cur.execute(sql)
+            conn.commit()
+        except Exception as err:
+            print("??", err)
+        finally:
+            try:
+                conn.close()
+            except:
+                pass
+
+    def run(self):
+        th = self.run_video()
+        print("run video AI start")
+        while True:
+            if self.frame is not None:
+                print("server is started")
+                break
+            else:
+                time.sleep(1)
+
+        self.run_server()
+        th.join()
+        print('finish')
+
 class ObjectDetector():
     DOWNLOAD_BASE = 'http://download.tensorflow.org/models/object_detection/'
     GRAPH_FILE_NAME = 'frozen_inference_graph.pb'
@@ -211,241 +479,9 @@ class ObjectDetector():
         ret, jpg = cv2.imencode('.jpg', frame)
         return jpg.tobytes()
 
-class VideoRun():
-    def __init__(self):
-        self.frame = None
-        self.frame_cnt = 0
-        self.video_server_host = '0.0.0.0'
-        self.video_server_port = 5051
-        
-        # DB ==>  CREATE TABLE TB (DATE INTEGER, CLASS TEXT, CORR TEXT); 
-        self.db_file_path = "./dbfile/db.dat"
-        # db 입력 간격(10초)
-        self.db_insert_term = 5
-        # db file 저장 시간 최대 범위(2 시간)
-        self.max_db_date = 60
-        
-        # img file 저장 최대 개수 (1000장)
-        self.max_img_file_cnt = 100
-        # img file 관리 큐
-        self.img_file_queue = queue.Queue()
-        # 이미지 파일 저장 경로
-        self.imwrite_path = "./imgfile/"
-        # 이미지 파일 저장 시간 간격(10분 마다)
-        self.img_write_gap = 60
-
-        # 3초 이내의 상황을 현재로 인지
-        self.current_time = 3
-        self.current_buffer = []
-
-    def insert_db(self, val):
-        sql = "INSERT INTO TB(DATE, CLASS, CORR) VALUES (?, ?, ?)"
-        try:
-            conn = sqlite3.connect(self.db_file_path)
-            cur = conn.cursor()
-            cur.execute(sql, val)
-            conn.commit()
-        except Exception as err:
-            print("??", err)
-        finally:
-            try:
-                conn.close()
-            except:
-                pass
-
-    def delete_outdated_data(self, now_date):
-        base_time = now_date - datetime.timedelta(seconds=self.max_db_date)
-        base_time_str = base_time.strftime("%Y%m%d%H%M%S")
-        sql = "DELETE FROM TB WHERE DATE <= %s" % base_time_str
-        print(sql)
-        try:
-            conn = sqlite3.connect(self.db_file_path)
-            cur = conn.cursor()
-            cur.execute(sql)
-            conn.commit()
-        except Exception as err:
-            print("??", err)
-        finally:
-            try:
-                conn.close()
-            except:
-                pass
-
-    def run_video(self):
-        print("run video")
-        import camera
-        face_recog_m = face_recog.FaceRecog()
-        detector = ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
-        print("known faces: ", face_recog_m.known_face_names)
-
-        # Using OpenCV to capture from device 0. If you have trouble capturing
-        # from a webcam, comment the line below out and use a video file
-        # instead.
-
-        def func(face_recog_m, detector):
-            retry_cnt = 0
-            
-            insert_flag = False
-            insert_priv_time = time.time()
-            
-            imwrite_flag = False
-            img_write_priv_time = time.time()
-            
-            while True:
-                now_date = datetime.datetime.now()
-                now_str = now_date.strftime("%Y%m%d%H%M%S")
-                
-                curr_time = time.time()
-                # db 입력 간격 측정
-                if curr_time - insert_priv_time >= self.db_insert_term:
-                    insert_priv_time = curr_time
-                    insert_flag = True
-                else:
-                    insert_flag = False
-                
-                # 이미지 저장 간격 측정
-                if curr_time - img_write_priv_time >= self.img_write_gap:
-                    img_write_priv_time = curr_time
-                    imwrite_flag = True
-                else:
-                    imwrite_flag = False
-                
-                try:
-                    frame, face_result_list = face_recog_m.get_frame_live()
-                    frame, obj_detection_dict = detector.detect_objects_live(frame)
-                    if imwrite_flag:
-                        # 10 분마다 이미지파일 쓰기
-                        img_write_file = self.imwrite_path + now_str + ".jpg"
-                        cv2.imwrite(img_write_file, frame)
-                        self.img_file_queue.put(img_write_file)
-                        print("write img: ", img_write_file)
-
-                        # 이미지 파일 개수가 1000개 이상일때 삭제
-                        if self.img_file_queue.qsize() > self.max_img_file_cnt:
-                            del_img_file = self.img_file_queue.get()
-                            os.remove(del_img_file)
-                            print("remove img: ", del_img_file)
-
-                        # DB에서 2시간 이전의 데이터 삭제
-                        self.delete_outdated_data(now_date)
-
-                    for face_result in face_result_list:
-                        face_corr = face_result[0]
-                        face_name = face_result[1]
-                        self.current_buffer.append((now_date, face_name))
-                        if insert_flag:
-                            val = (now_str, face_name, str(face_corr))
-                            self.insert_db(val)
-                            print("insert ", val)
-                    for item in obj_detection_dict:
-                        try:
-                            obj_corr = item
-                            class_str = obj_detection_dict[item][0]
-                            class_list = class_str.split()
-                            obj_class = class_list[0][:-1]
-                            obj_score = int(class_list[1][:-1])
-                            self.current_buffer.append((now_date, obj_class))
-                            if insert_flag:
-                                val = (now_str, obj_class, str(obj_corr))
-                                self.insert_db(val)
-                                print("insert ", val)
-                        except:
-                            pass
-                    origin_len = len(self.current_buffer)
-                    for _ in range(origin_len):
-                        if self.check_current_max(now_date):
-                            del self.current_buffer[0]
-                    self.frame = frame
-                    self.frame_cnt += 1
-                except Exception as err:
-                    print(err)
-                    try:
-                        face_recog_m = face_recog.FaceRecog()
-                    except:
-                        retry_cnt += 1
-                        if retry_cnt > 5:
-                            break
-
-        th = threading.Thread(target=func, args=(face_recog_m, detector))
-        th.daemon = True
-        th.start()
-        return th
-
-    def check_current_max(self, now_date):
-        if len(self.current_buffer) > 0:
-            last_date_time = self.current_buffer[0][0]
-            if now_date - last_date_time >= datetime.timedelta(seconds=self.current_time):
-                return True
-        return False
-
-    def run_server(self):
-        WELCOME_MSG = b"+OK Welcome Video AI Server\r\n"
-        while True:
-            s = Socket.Socket()
-            s.Bind(self.video_server_port)
-            sock = s.Accept()
-            print("Accept")
-            sock.SendMessage(WELCOME_MSG)
-            while True:
-                try:
-                    line = sock.Readline()
-                    line = line.decode('utf-8')
-                    cmd, param = line.strip().split() 
-                    print("CMD : ", cmd)
-                    print("param : ", param)
-                    ret_message = b"-ERR BAD\r\n"
-                    if cmd.upper() == "GET_CURRENT":
-                        ret_message = b'+OK good\r\n'
-                    elif cmd.upper() == "EXISTS":
-                        ret_message = b'+OK i dont  know\r\n'
-                        ret_message = self.EXISTS(obj=param)
-                    elif cmd.upper() == "SHOW_CURRENT":
-                        ret_message = b'+OK i dont  know\r\n'
-                        ret_message = self.SHOW_CURRENT()
-                    elif cmd == "QUIT":
-                        break
-                    print("CMD : **", cmd)
-                    sock.SendMessage(ret_message)
-                except Exception as err:
-                    print(err)
-                    break
-            try:
-                sock.close()
-                s.close()
-            except: pass
-
-    def EXISTS(self, obj=None):
-        if obj == None:
-            return b"+OK 1"
-        else:
-            return b"+OK 1"
- 
-    def SHOW_CURRENT(self):
-        tmp_set = set([])
-        for obj in self.current_buffer:
-            tmp_set.add(obj[1])
-        rtn_str = ""
-        for item in tmp_set:
-            rtn_str += "%s, " % item
-        rtn_string = '+OK %s\r\n' % rtn_str
-        b = bytes(rtn_string, 'utf-8')
-        return b
-
-    def run(self):
-        th = self.run_video()
-        print("run video AI start")
-        while True:
-            if self.frame is not None:
-                print("server is started")
-                break
-            else:
-                time.sleep(1)
-
-        self.run_server()
-        th.join()
-        print('finish')
-
 
 if __name__ == '__main__':
     vr = VideoRun()
+    #print(vr.last_check_db("HYUNWOO"))
+    #print(vr.LAST_SHOW("9HYUNWOO"))
     vr.run()
