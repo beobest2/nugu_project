@@ -64,6 +64,7 @@ class Live():
 
     def last_check_db(self, target):
         sql = "SELECT DATE FROM TB WHERE CLASS = '%s' ORDER BY DATE DESC LIMIT 1" % target
+        print(sql)
         date = None
         try:
             conn = sqlite3.connect(self.db_file_path)
@@ -85,6 +86,7 @@ class Live():
         print("!!!!!!! LAST SHOW : ", target)
         rtn_str = "0,0"
         last_date_str = self.last_check_db(target)
+        print("last_date_str: ", last_date_str)
         if last_date_str is None:
             pass
         else:
@@ -401,4 +403,5 @@ class Live():
 
 if __name__ == '__main__':
     lv = Live()
-    lv.run()
+    #lv.run()
+    print(lv.LAST_SHOW('tie'))
