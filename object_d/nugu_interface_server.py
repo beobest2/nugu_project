@@ -49,6 +49,7 @@ class Live():
             except:
                 pass
         rtn_val = ""
+        print("ERRRRRRR!!! : ", read_msg)
         if read_msg[0]:
             rtn_val = read_msg[1]
         return str(rtn_val)

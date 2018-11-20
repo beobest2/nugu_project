@@ -99,6 +99,7 @@ class VideoRun():
         return b
 
     def LAST_SHOW(self, target):
+        print("!!!!!!! LAST SHOW")
         rtn_str = "+OK"
         last_date_str = self.last_check_db(target)
         if last_date_str is None:
@@ -483,5 +484,5 @@ class ObjectDetector():
 if __name__ == '__main__':
     vr = VideoRun()
     #print(vr.last_check_db("HYUNWOO"))
-    #print(vr.LAST_SHOW("9HYUNWOO"))
-    vr.run()
+    print(vr.LAST_SHOW("9HYUNWOO"))
+    #vr.run()
