@@ -35,7 +35,7 @@ class VideoRun():
         # db 입력 간격(10초)
         self.db_insert_term = 5
         # db file 저장 시간 최대 범위(2 시간)
-        self.max_db_date = 60
+        self.max_db_date = 1200
 
         # img file 저장 최대 개수 (1000장)
         self.max_img_file_cnt = 100
@@ -44,7 +44,7 @@ class VideoRun():
         # 이미지 파일 저장 경로
         self.imwrite_path = "./imgfile/"
         # 이미지 파일 저장 시간 간격(10분 마다)
-        self.img_write_gap = 60
+        self.img_write_gap = 600
 
         # 3초 이내의 상황을 현재로 인지
         self.current_time = 3
