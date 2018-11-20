@@ -139,7 +139,7 @@ class Live():
             UNKNOWN_EXIST = 1
             TARGET_EXIST = 0
             TARGET_ALL = 10
-            TARGET_NOT_EXIST = "%d시 %d분"
+            TARGET_NOT_EXIST = "%d시%d분"
 
             try:
                 json_data = request.get_json()
@@ -280,8 +280,7 @@ class Live():
                         last_cmd_b = bytes(last_cmd, 'utf-8') 
                         read_msg = self.communicate_video(last_cmd_b)
                         if read_msg.strip() == "0,0":
-                            # db에 없다
-                            pass
+                            disappear_time = "기록시작"
                         else:
                             print("read_msg: ", read_msg)
                             rtn_list = read_msg.strip().split(",")
