@@ -46,6 +46,7 @@ class Live():
             s.SendMessage(b"QUIT 0\r\n")
         except Exception as err:
             print(str(err))
+
             pass
         finally:
             try:
@@ -56,6 +57,7 @@ class Live():
         print("ERRRRRRR!!! : ", read_msg)
         if read_msg[0] and len(read_msg) == 2:
             rtn_val = read_msg[1]
+        # 연결 실패시 빈문자열
         return str(rtn_val)
 
     def detected_list_match(self, rtn_list):
@@ -146,6 +148,7 @@ class Live():
             TARGET_ALL_NOT_EXIST = -10
             TARGET_NOT_EXIST = "%d시%d분"
             TARGET_NOT_EXIST_AT_ALL = 404
+            VIDEO_CONN_FAIL = -404
 
             try:
                 json_data = request.get_json()
@@ -252,6 +255,8 @@ class Live():
                     if "UNKNOWN" in rtn_list:
                         # 낯선 사람 지금 존재
                         disappear_time = UNKNOWN_EXIST
+                    elif rtn_list == "":
+                        disappear_time = VIDEO_CONN_FAIL
                     else:
                         disappear_time = UNKNOWN_NOT_EXIST
                         unknown = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
@@ -270,6 +275,8 @@ class Live():
                         detected_list = self.detected_list_match(rtn_list)
                         all = ",".join(detected_list)
                         disappear_time = TARGET_ALL
+                    elif rtn_list == "":
+                        disappear_time = VIDEO_CONN_FAIL
                     else:
                         disappear_time = TARGET_ALL_NOT_EXIST
                 else:
@@ -279,28 +286,33 @@ class Live():
                         target = self.watched_dict[watched]
 
                     read_msg = self.communicate_video(b"SHOW_CURRENT 0\r\n")
-                    rtn_list = read_msg.strip().split(",")
-                    if target in rtn_list:
-                        # 지금 존재
-                        disappear_time = TARGET_EXIST
+                    if read_msg == "":
+                        disappear_time = VIDEO_CONN_FAIL
                     else:
-                        disappear_time = TARGET_NOT_EXIST
-                        last_cmd = "LAST_SHOW %s\r\n" % target
-                        print("!!!!!!!!!!!!", last_cmd)
-                        last_cmd_b = bytes(last_cmd, 'utf-8')
-                        read_msg = self.communicate_video(last_cmd_b)
-                        if read_msg.strip() == "0,0" or len(read_msg) == 0:
-                            disappear_time = TARGET_NOT_EXIST_AT_ALL
+                        rtn_list = read_msg.strip().split(",")
+                        if target in rtn_list:
+                            # 지금 존재
+                            disappear_time = TARGET_EXIST
                         else:
-                            print("read_msg: ", read_msg)
-                            rtn_list = read_msg.strip().split(",")
-                            print("rtn_list: ", rtn_list)
-                            hour_ = int(rtn_list[0])
-                            min_ = int(rtn_list[1])
-                            if hour_ == 0:
-                                disappear_time = "%d분" % min_
+                            disappear_time = TARGET_NOT_EXIST
+                            last_cmd = "LAST_SHOW %s\r\n" % target
+                            print("!!!!!!!!!!!!", last_cmd)
+                            last_cmd_b = bytes(last_cmd, 'utf-8')
+                            read_msg = self.communicate_video(last_cmd_b)
+                            if read_msg.strip() == "0,0":
+                                disappear_time = TARGET_NOT_EXIST_AT_ALL
+                            elif read_msg == "":
+                                disappear_time = VIDEO_CONN_FAIL
                             else:
-                                disappear_time = "%d시%d분" % (hour_, min_)
+                                print("read_msg: ", read_msg)
+                                rtn_list = read_msg.strip().split(",")
+                                print("rtn_list: ", rtn_list)
+                                hour_ = int(rtn_list[0])
+                                min_ = int(rtn_list[1])
+                                if hour_ == 0:
+                                    disappear_time = "%d분" % min_
+                                else:
+                                    disappear_time = "%d시%d분" % (hour_, min_)
 
             rtn = {
                     "version": "2.0",
