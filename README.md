@@ -45,8 +45,14 @@ $ python nugu_interface_server.py
 ```
 
 - 영상 뷰어 서버 실행 (5050 포트)
-$ python live_streaming.py
 
+```
+$ python live_streaming.py
+```
+
+- TEST
+
+```
 // health check
 127.0.0.1/health
 
@@ -55,3 +61,4 @@ $ python live_streaming.py
 
 // 영상 스트리밍 (동영상 파일의 경우 스트리밍 서버 접속시부터 실행되므로 NUGU와 싱크가 맞지 않을 수있음)
 127.0.0.1:5050
+```
