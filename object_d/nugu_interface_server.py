@@ -84,7 +84,7 @@ class Live():
 
     def LAST_SHOW(self, target):
         print("!!!!!!! LAST SHOW : ", target)
-        rtn_str = "0,0"
+        rtn_str = None
         last_date_str = self.last_check_db(target)
         print("last_date_str: ", last_date_str)
         if last_date_str is None:
@@ -336,6 +336,8 @@ class Live():
                             disappear_time = TARGET_NOT_EXIST
                             read_msg = self.LAST_SHOW(target)
                             if read_msg.strip() == "0,0":
+                                disappear_time = TARGET_EXIST
+                            elif read_msg is None:
                                 disappear_time = TARGET_NOT_EXIST_AT_ALL
                             elif read_msg == "":
                                 disappear_time = VIDEO_CONN_FAIL
