@@ -32,6 +32,7 @@ class Live():
                 "dog", "고양이" : "cat", "야옹이" : "cat", "냐옹이" : "cat", "멍멍이" : "cat"}
 
     def communicate_video(self, cmd):
+        print(cmd)
         read_msg = "-ERR fail to connect video server\r\n"
         try:
             s = Socket.Socket()
