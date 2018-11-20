@@ -183,6 +183,7 @@ class Live():
             UNKNOWN_NOT_EXIST = -1
             UNKNOWN_EXIST = 1
             TARGET_EXIST = 0
+            TARGET_EXIST_IN_1 = 60
             TARGET_ALL = 10
             TARGET_ALL_NOT_EXIST = -10
             TARGET_NOT_EXIST = "%d시%d분"
@@ -336,7 +337,7 @@ class Live():
                             disappear_time = TARGET_NOT_EXIST
                             read_msg = self.LAST_SHOW(target)
                             if read_msg.strip() == "0,0":
-                                disappear_time = TARGET_EXIST
+                                disappear_time = TARGET_EXIST_IN_1
                             elif read_msg is None:
                                 disappear_time = TARGET_NOT_EXIST_AT_ALL
                             elif read_msg == "":
