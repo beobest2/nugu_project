@@ -93,10 +93,12 @@ class Live():
             # calculate time delta
             last_date = datetime.datetime.strptime(str(last_date_str), '%Y%m%d%H%M%S')
             time_delta = datetime.datetime.now() - last_date
+            h = 0
+            m = 0
             h, rem = divmod(time_delta.seconds, 3600)
             m, s = divmod(rem, 60)
             rtn_str = "%s,%s" % (h, m)
-        rtn_str += "\r\n"
+        print("rtn_str ::::: ", rtn_str)
         return rtn_str
 
     def detected_list_match(self, rtn_list):
