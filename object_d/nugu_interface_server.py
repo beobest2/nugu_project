@@ -41,7 +41,7 @@ class Live():
             read_msg = s.ReadMessage()
             s.SendMessage(b"QUIT 0\r\n")
         except Exception as err:
-            print("??", err)
+            print(err)
             pass
         finally:
             try:
@@ -279,7 +279,7 @@ class Live():
                         last_cmd = "LAST_SHOW %s\r\n" % target
                         last_cmd_b = bytes(last_cmd, 'utf-8') 
                         read_msg = self.communicate_video(last_cmd_b)
-                        if len(read_msg) == 0:
+                        if read_msg.strip() == "0,0":
                             # db에 없다
                             pass
                         else:

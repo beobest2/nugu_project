@@ -100,7 +100,7 @@ class VideoRun():
 
     def LAST_SHOW(self, target):
         print("!!!!!!! LAST SHOW")
-        rtn_str = "+OK"
+        rtn_str = "+OK 0,0"
         last_date_str = self.last_check_db(target)
         if last_date_str is None:
             pass
