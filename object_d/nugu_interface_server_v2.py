@@ -457,13 +457,13 @@ class Live():
 
             total_past_min = 0
             k_list = json_data['action']['parameters'].keys()
-            if "hour_" in k_list or "min_" in k_list:
+            if "hour" in k_list or "min" in k_list:
                 hour_ = 0
                 min_ = 0
-                if "hour_" in k_list:
-                    hour_ = int(json_data['action']['parameters']['hour_']["value"].split(".")[1])
-                if "min_" in k_list:
-                    min_ = int(json_data['action']['parameters']['min_']["value"])
+                if "hour" in k_list:
+                    hour_ = int(json_data['action']['parameters']['hour']["value"].split(".")[1])
+                if "min" in k_list:
+                    min_ = int(json_data['action']['parameters']['min']["value"])
                 print("HOUR : ", hour_)
                 print("MIN : ", min_)
                 total_past_min = (hour_ * 60) + min_
