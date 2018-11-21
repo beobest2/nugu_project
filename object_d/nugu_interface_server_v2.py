@@ -307,7 +307,7 @@ class Live():
                         is_exist = 0
                         read_msg = self.LAST_SHOW(target)
                         if read_msg == "0,0":
-                            action_type = "unknown_now"
+                            action_type = "one_now"
                             is_exist = 1
                             with_in_a_minute = 1
                         elif read_msg is None:
