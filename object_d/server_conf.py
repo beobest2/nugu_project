@@ -118,6 +118,8 @@ proxy_port = 5060
 
 # 현재 시간이라고 볼수있는 시간 범위 - 최근 레코드 개수
 now_time_range = 3
+# 과거 특정 시점 질문시 +-10 분 조회 
+past_range = 10
 
 # camera input source
 camera_source=0

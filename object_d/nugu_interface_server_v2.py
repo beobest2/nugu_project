@@ -18,6 +18,8 @@ class Live():
 
         # 현재 시간이라고 볼수있는 시간 범위 - 최근 레코드 개수
         self.now_time_range = server_conf.now_time_range
+        # 과거 질문시 +- 10분 까지 조회
+        self.past_range = server_conf.past_range
 
         # 접속할 mysql sever connection info
         self.mysql_host = server_conf.mysql_host
@@ -148,6 +150,23 @@ class Live():
             rtn_list.append(item)
         return rtn_list
 
+    def SHOW_PAST(self, past_min):
+        now_date = datetime.datetime.now()
+        past_min_date = now_date - datetime.timedelta(minutes=past_min+self.past_range)
+        past_max_date = now_date - datetime.timedelta(minutes=past_min-self.past_range)
+        past_min_str = past_min_date.strftime("%m%d%H%M%S")
+        past_max_str = past_max_date.strftime("%m%d%H%M%S")
+        sql = "SELECT CLASS FROM %s WHERE " % self.mysql_table
+        sql += " DATE >= %s AND DATE <= %s ORDER BY DATE" % (int(past_min_str), int(past_max_str))
+        rows = self._mysql_select(sql)
+        tmp_set = set([])
+        for item in rows:
+            tmp_set.add(item["CLASS"])
+        rtn_list = []
+        for item in tmp_set:
+            rtn_list.append(item)
+        return rtn_list
+
     def detected_list_match(self, rtn_list):
         for idx, item in enumerate(rtn_list):
             if item in self.known_dict.keys():
@@ -254,8 +273,63 @@ class Live():
 
             k_list = json_data['action']['parameters'].keys()
             if "hour_" in k_list or "min_" in k_list:
+                hour_ = 0
+                min_ = 0
+                if "hour_" in l_list:
+                    hour_ = int(json_data['action']['parameters']['hour_']["value"].split(".")[1])
+                if "min_" in l_list:
+                    min_ = int(json_data['action']['parameters']['min_']["value"])
+                print("HOUR : ", hour_)
+                print("MIN : ", min_)
+                total_past_min = (hour_ * 60) + min_
                 # 과거
-                pass
+                if watched == "UNKNOWN":
+                    """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
+                    - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
+                    - disappear_time은 1을 할당  
+                    - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
+                    rtn_list = self.SHOW_PAST(total_past_min)
+                    if "UNKNOWN" in rtn_list:
+                        # 낯선 사람 과거 시점에 존재
+                        action_type = "unknown_past"
+                        is_exist = 1
+                        watched = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
+                    else:
+                        # 낯선 사람 없음
+                        action_type = "unknown_past"
+                        is_exist = 0
+                elif watched == "ALL":
+                    """ FIXME : watched가 'ALL'로 전달되었을때 처리
+                    - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
+                        - ex) 현우, 해준, 컴퓨터, 강아지가 있을 경우
+                        - detected_list = ["현우","해준","컴퓨터","강아지"]
+                        - all = ",".join(detected_list)
+                    - disappear_time은 10을 할당
+                     """
+                    rtn_list = self.SHOW_PAST()
+                    if len(rtn_list) > 0:
+                        detected_list = self.detected_list_match(rtn_list)
+                        watched = ",".join(detected_list)
+                        action_type = "all_past"
+                        is_exist = 1
+                    else:
+                        action_type = "all_past"
+                        is_exist = 0
+                else:
+                    # 특정 객체 질문
+                    target = watched
+                    if watched in self.watched_dict.keys():
+                        target = self.watched_dict[watched]
+
+                    rtn_list = self.SHOW_PAST()
+                    if target in rtn_list:
+                        # 지금 존재
+                        action_type = "one_past"
+                        is_exist = 1
+                    else:
+                        # 지금 존재하지 않을 경우 언제 사라졌는지 조사
+                        action_type = "one_past"
+                        is_exist = 0
             else:
                 # 현재
                 if watched == "UNKNOWN":
