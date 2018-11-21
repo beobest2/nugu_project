@@ -120,8 +120,8 @@ proxy_port = 5060
 now_time_range = 3
 
 # camera input source
-#camera_source=0
+camera_source=0
 #camera_source="/Users/hwpark/Desktop/test.mp4"
-camera_source="./test.mp4"
+#camera_source="./test.mp4"
 
 user_email=["cleanby@naver.com", "haejoon309@naver.com"]

@@ -300,8 +300,7 @@ class VideoRun():
         # 이메일 내용 셋팅
         msg = EmailMessage()
         msg['Subject'] = '[Sauron] 관측 사진 전송'
-        msg.set_content(
-            f'{date[:4]}년 {date[4:6]}월 {date[6:8]}일 {date[8:10]}시 {date[10:12]}분 {date[12:14]}초에 캡쳐된 사진입니다.')
+        msg.set_content(f'{date[:2]}월 {date[2:4]}일 {date[4:6]}시 {date[6:8]}분 {date[8:10]}초에 캡쳐된 사진입니다.')
         msg['From'] = 'Sauron Video Server'
         msg['To'] = user_email
         file = open(file_path, 'rb').read()
