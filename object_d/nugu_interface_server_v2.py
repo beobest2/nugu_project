@@ -46,6 +46,7 @@ class Live():
             for watched in self.label_dict[item]:
                 self.watched_dict[watched] = item
 
+
     def _mysql_connection_check(self):
         # health check
         return_val = True
@@ -234,8 +235,6 @@ class Live():
             with_in_a_minute = 0
             is_exist = 0
             action_type = None
-            all = None
-            unknown = 0  # unknown default값. 뭐가 오든 상관없음
             disappear_time = -99 # default
             watched = json_data['action']['parameters']['watched']['value']
 
@@ -269,7 +268,7 @@ class Live():
                         # 낯선 사람 지금 존재
                         action_type = "unknown_now"
                         is_exist = 1
-                        unknown = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
+                        watched = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
                     else:
                         # 낯선 사람 없음
                         action_type = "unknown_now"
@@ -285,7 +284,7 @@ class Live():
                     rtn_list = self.SHOW_CURRENT()
                     if len(rtn_list) > 0:
                         detected_list = self.detected_list_match(rtn_list)
-                        all = ",".join(detected_list)
+                        watched = ",".join(detected_list)
                         action_type = "all_now"
                         is_exist = 1
                     else:
@@ -331,8 +330,6 @@ class Live():
                     "output": {
                         "result": True,
                         "watched": watched,
-                        "all": all,
-                        "unknown": unknown,
                         "disappear_time": disappear_time,
                         "action_type" : action_type,
                         "is_exist" : is_exist,
