@@ -1,3 +1,9 @@
 [DEBUG] 'tmp_send_email.py' 2018-11-21 22:49:41,102 : sendmail debug logger
 [DEBUG] 'tmp_send_email.py' 2018-11-21 22:50:27,232 : to haejoon309@naver.com
 [DEBUG] 'tmp_send_email.py' 2018-11-21 22:56:56,896 : to haejoon309@naver.com
+[DEBUG] 'background_video_server_v2.py' 2018-11-22 02:11:21,824 : to ['cleanby@naver.com', 'haejoon309@naver.com']
+[DEBUG] 'background_video_server_v2.py' 2018-11-22 02:11:22,312 : to ['cleanby@naver.com', 'haejoon309@naver.com']
+[DEBUG] 'background_video_server_v2.py' 2018-11-22 02:11:22,312 : to ['cleanby@naver.com', 'haejoon309@naver.com']
+[DEBUG] 'background_video_server_v2.py' 2018-11-22 02:11:22,779 : to ['cleanby@naver.com', 'haejoon309@naver.com']
+[DEBUG] 'background_video_server_v2.py' 2018-11-22 02:11:22,779 : to ['cleanby@naver.com', 'haejoon309@naver.com']
+[DEBUG] 'background_video_server_v2.py' 2018-11-22 02:11:22,779 : to ['cleanby@naver.com', 'haejoon309@naver.com']
