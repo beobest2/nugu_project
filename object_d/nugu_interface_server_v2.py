@@ -225,28 +225,19 @@ class Live():
             method = request.method
             if method != "POST":
                 rtn = {"result" : False, "message": "not supported method [%s]" % method}
-
-            # disappear value
-            DEFAULT = -99
-            UNKNOWN_NOT_EXIST = -1
-            UNKNOWN_EXIST = 1
-            TARGET_EXIST = 0
-            TARGET_EXIST_IN_1 = 60
-            TARGET_ALL = 10
-            TARGET_ALL_NOT_EXIST = -10
-            TARGET_NOT_EXIST = "%d시%d분"
-            TARGET_NOT_EXIST_AT_ALL = 404
-            VIDEO_CONN_FAIL = -404
-
             try:
                 json_data = request.get_json()
                 print("[answer.exist] json_data : {}".format(json_data))
             except:
                 json_data = None
 
+            # set_default_value
+            with_in_a_minute = 0
+            is_exist = 0
+            action_type = None
             all = None
             unknown = 0  # unknown default값. 뭐가 오든 상관없음
-            disappear_time = DEFAULT
+            disappear_time = -99 # default
             watched = json_data['action']['parameters']['watched']['value']
 
             """ FIXME :  disappear_time에 watched가 마지막으로 존재했던 시간을 할당
@@ -277,11 +268,13 @@ class Live():
                     rtn_list = self.SHOW_CURRENT()
                     if "UNKNOWN" in rtn_list:
                         # 낯선 사람 지금 존재
-                        disappear_time = UNKNOWN_EXIST
+                        action_type = "unknown_now"
+                        is_exist = 1
                         unknown = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
                     else:
                         # 낯선 사람 없음
-                        disappear_time = UNKNOWN_NOT_EXIST
+                        action_type = "unknown_now"
+                        is_exist = 0
                 elif watched == "ALL":
                     """ FIXME : watched가 'ALL'로 전달되었을때 처리
                     - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
@@ -294,9 +287,11 @@ class Live():
                     if len(rtn_list) > 0:
                         detected_list = self.detected_list_match(rtn_list)
                         all = ",".join(detected_list)
-                        disappear_time = TARGET_ALL
+                        action_type = "all_now"
+                        is_exist = 1
                     else:
-                        disappear_time = TARGET_ALL_NOT_EXIST
+                        action_type = "all_now"
+                        is_exist = 0
                 else:
                     # 특정 객체 질문
                     target = watched
@@ -306,15 +301,20 @@ class Live():
                     rtn_list = self.SHOW_CURRENT()
                     if target in rtn_list:
                         # 지금 존재
-                        disappear_time = TARGET_EXIST
+                        action_type = "one_now"
+                        is_exist = 1
                     else:
                         # 지금 존재하지 않을 경우 언제 사라졌는지 조사
-                        disappear_time = TARGET_NOT_EXIST
+                        action_type = "one_now"
+                        is_exist = 0
                         read_msg = self.LAST_SHOW(target)
                         if read_msg == "0,0":
-                            disappear_time = TARGET_EXIST_IN_1
+                            action_type = "unknown_now"
+                            is_exist = 1
+                            with_in_a_minute = 1
                         elif read_msg is None:
-                            disappear_time = TARGET_NOT_EXIST_AT_ALL
+                            action_type = "one_now"
+                            is_exist = -1
                         else:
                             print("read_msg: ", read_msg)
                             rtn_list = read_msg.strip().split(",")
@@ -331,9 +331,13 @@ class Live():
                     "resultCode": "OK",
                     "output": {
                         "result": True,
+                        "watched": watched,
                         "all": all,
                         "unknown": unknown,
-                        "disappear_time": disappear_time
+                        "disappear_time": disappear_time,
+                        "action_type" : action_type,
+                        "is_exist" : is_exist,
+                        "with_in_a_minute" : with_in_a_minute
                     }
                 }
 
