@@ -139,8 +139,8 @@ class Live():
         now_min_date = now_date - datetime.timedelta(seconds=self.now_time_range)
         now_str = now_date.strftime("%m%d%H%M%S")
         now_min_str = now_min_date.strftime("%m%d%H%M%S")
-        sql = "SELECT DISTINCT CLASS FROM %s WHERE " % self.mysql_table
-        sql += " DATE >= %s" % int(now_min_str)
+        sql = "SELECT CLASS FROM %s WHERE " % self.mysql_table
+        sql += " DATE >= %s ORDER BY DATE DESC LIMIT 3" % int(now_min_str)
         print("show current  sql: ", sql)
         rows = self._mysql_select(sql)
         tmp_set = set([])
