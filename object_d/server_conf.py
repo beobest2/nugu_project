@@ -99,11 +99,11 @@ create_sql_imgcall_table = "create table imgcall (DATE_CALL int not null, TIME i
 create_sql_imgfile_table = "create table imgtable (DATE int not null, FILE_PATH char(100))"
 
 # db 입력 간격(3초)
-db_insert_term = 3
+db_insert_term = 1
 # buffer 입력 간격 1초
 buffer_write_gap = 1
 # db file 저장 시간 최대 범위(2 시간)
-max_db_date = 120
+max_db_date = 1200
 
 # img file 저장 최대 개수 (1000장)
 max_img_file_cnt = 100
