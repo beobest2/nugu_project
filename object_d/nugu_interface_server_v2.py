@@ -275,9 +275,9 @@ class Live():
             if "hour_" in k_list or "min_" in k_list:
                 hour_ = 0
                 min_ = 0
-                if "hour_" in l_list:
+                if "hour_" in k_list:
                     hour_ = int(json_data['action']['parameters']['hour_']["value"].split(".")[1])
-                if "min_" in l_list:
+                if "min_" in k_list:
                     min_ = int(json_data['action']['parameters']['min_']["value"])
                 print("HOUR : ", hour_)
                 print("MIN : ", min_)
