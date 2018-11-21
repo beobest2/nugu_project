@@ -65,13 +65,16 @@ class Live():
         return return_val
 
 
-    def _mysql_dml(self, sql, val):
+    def _mysql_dml(self, sql, val=None):
         # INSERT, UPDATE, DELETE
         try:
             conn = pymysql.connect(host=self.mysql_host, user=self.mysql_user,
                     password=self.mysql_password, db=self.mysql_db, charset='utf-8')
             curs = conn.cursor(pymysql.cursors.DictCursor)
-            curs.execute(sql, val)
+            if val is None:
+                curs.execute(sql)
+            else:
+                curs.execute(sql, val)
             conn.commit()
         except Exception as err:
             print(err)
