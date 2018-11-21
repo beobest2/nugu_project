@@ -252,6 +252,7 @@ class VideoRun():
             self.send_email(final_file_path, self.user_email)
             return True
         else:
+            self.send_email(None, self.user_email)
             return False
 
     def find_simillar_time(self, target_date_num, rows):
@@ -297,14 +298,17 @@ class VideoRun():
         # 파일명에서 날짜만 추출
         date = re.findall('\d+', file_path)[0]
 
-        # 이메일 내용 셋팅
         msg = EmailMessage()
-        msg['Subject'] = '[Sauron] 관측 사진 전송'
-        msg.set_content(f'{date[:2]}월 {date[2:4]}일 {date[4:6]}시 {date[6:8]}분 {date[8:10]}초에 캡쳐된 사진입니다.')
         msg['From'] = 'Sauron Video Server'
         msg['To'] = user_email
-        file = open(file_path, 'rb').read()
-        msg.add_attachment(file, maintype='text', subtype='plain', filename="{}.jpg".format(date))
+        msg['Subject'] = '[Sauron] 관측 사진 전송'
+        # 이메일 내용 셋팅
+        if file_path is None:
+            msg.set_content("요청하신 시간에 캡쳐된 사진이 없습니다.")
+        else:
+            msg.set_content(f'{date[:2]}월 {date[2:4]}일 {date[4:6]}시 {date[6:8]}분 {date[8:10]}초에 캡쳐된 사진입니다.')
+            file = open(file_path, 'rb').read()
+            msg.add_attachment(file, maintype='text', subtype='plain', filename="{}.jpg".format(date))
 
         # 이메일 서버 셋팅
         naver_server = smtplib.SMTP_SSL('smtp.naver.com', 465)
