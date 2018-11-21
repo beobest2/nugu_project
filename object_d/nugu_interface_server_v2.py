@@ -136,7 +136,7 @@ class Live():
 
     def SHOW_CURRENT(self):
         now_date = datetime.datetime.now()
-        now_min_date = now_date - datetime.timedelta(seconds=10)
+        now_min_date = now_date - datetime.timedelta(seconds=self.now_time_range)
         now_str = now_date.strftime("%m%d%H%M%S")
         now_min_str = now_min_date.strftime("%m%d%H%M%S")
         sql = "SELECT DISTINCT CLASS FROM %s WHERE " % self.mysql_table
