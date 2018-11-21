@@ -90,9 +90,14 @@ mysql_host = "0.0.0.0"
 mysql_user = "nuguuser"
 mysql_password = "nugu321"
 mysql_db = "testcam01"
-mysql_table = "testcam01"
+mysql_table = "tb"
 mysql_img_call_table = "imgcall"
 mysql_img_file_table = "imgfile"
+
+create_sql_table = "create table tb (DATE int not null, CLASS char(100), CORR char(100), primary key(DATE))"
+create_sql_imgcall_table = "create table imgcall (DATE_CALL int not null, TIME int, primary key(DATE_CALL))"
+create_sql_imgfile_table = "create table imgtable (DATE int not null, FILE_PATH char(100), primary key(DATE))"
+
 # db 입력 간격(5초)
 db_insert_term = 5
 # db file 저장 시간 최대 범위(2 시간)
