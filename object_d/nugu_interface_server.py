@@ -39,8 +39,11 @@ class Live():
                 "cellphone"}
 
     def communicate_video(self, cmd):
+        """ video 서버 접속 및 데이터 통신 """
+
         print(cmd)
         read_msg = "-ERR fail to connect video server\r\n"
+
         try:
             s = Socket.Socket()
             s.Connect(self.video_host, self.video_port)
@@ -64,6 +67,8 @@ class Live():
         return str(rtn_val)
 
     def last_check_db(self, target):
+        """ 테이블에서 타겟의 최종 갱신 날짜 가져오기 """
+
         sql = "SELECT DATE FROM TB WHERE CLASS = '%s' ORDER BY DATE DESC LIMIT 1" % target
         print(sql)
         date = None
@@ -84,6 +89,8 @@ class Live():
         return date
 
     def LAST_SHOW(self, target):
+        """ 타겟의 최종 갱신 날짜 가져와서 문자열 파싱 (last_check_db wrapping) """
+
         print("!!!!!!! LAST SHOW : ", target)
         rtn_str = None
         last_date_str = self.last_check_db(target)
@@ -103,40 +110,46 @@ class Live():
         return rtn_str
 
     def detected_list_match(self, rtn_list):
+        """ 감지된 오브젝트 리스트를 기존에 등록해놓은 규칙에 맞게 파싱 (ex. 현우 > HYUNWOO) """
+
         for idx, item in enumerate(rtn_list):
             if item in self.known_dict.keys():
                 rtn_list[idx] = self.known_dict[item]
         return rtn_list
 
     def init_flask(self, app):
+        """ 웹페이지 경로 라우팅 """
+
         @app.route('/')
         def index():
-            rtn_msg = "health check success"
-            rtn_bool = True
+            """ 루트 디렉토리로 라우팅시 healthcheck 성공 메시지 리턴 """
+
+            message = "health check success"
+            result = True
 
             rtn = {
                     "version": "2.0",
                     "resultCode": "200 OK",
                     "output": {
-                      "result": rtn_bool,
-                      "message": rtn_msg
+                      "result": result,
+                      "message": message
                     }
                 }
             return json.dumps(rtn)
 
         @app.route("/health", methods=["GET"])
         def health_check():
-            """
-            health check : 시스템  정상 연결 확인
-            """
+            """ NUGU 서버와 정상 연결 확인을 위한 라우터 """
+
             method = request.method
-            rtn_msg = "health check success"
-            rtn_bool = True
+            message = "health check success"
+            result = True
             read_msg = ""
             read_msg = self.communicate_video(b"HEALTH_CHECK 0\r\n")
+
             if read_msg.strip() != "+OK 30":
-                rtn_bool = False
-                rtn_msg = "video server connection fail"
+                result = False
+                message = "video server connection fail"
 
             rtn = {
                     "version": "2.0",
@@ -146,6 +159,7 @@ class Live():
                       "message": rtn_msg
                     }
                 }
+
             return json.dumps(rtn)
 
         @app.route("/show", methods=["GET"])
@@ -373,7 +387,7 @@ class Live():
 
         @app.route("/Watcher/answer.capture", methods=["POST"])
         def watcher_answer_capture():
-            """ watcher_answer_exist 함수의 분석 결과, 사용자가 존재하지 않으면 처리하는 함수 """
+            """ 사용자가 사진 요청시 처리하는 라우터 """
 
             method = request.method
             if method != "POST":
