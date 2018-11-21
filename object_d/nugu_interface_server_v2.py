@@ -26,6 +26,7 @@ class Live():
         self.mysql_db = server_conf.mysql_db
         self.mysql_table = server_conf.mysql_table
         self.mysql_img_call_table = server_conf.mysql_img_call_table
+        self.mysql_img_file_table = server_conf.mysql_img_file_table
         """
         DB : testcam01
         TABLE : testcam01
@@ -360,6 +361,13 @@ class Live():
             3. 메일을 보낸후 resultCode를 OK로 보내주면 된다.
             4. 메일 전송이 실패한 경우는 아직 처리하지 않는다.
             """
+            # example 요청 시간 10분 전
+            request_time = 10
+            now_date = datetime.datetime.now()
+            now_str = now_date.strftime("%Y%m%d%H%M%S")
+
+            sql = "INSERT INTO %s(DATE_CALL, TIME) VALUES (%s, %s)"
+            self._mysql_dml(sql, (self.mysql_img_call_table, now_str, request_time))
             rtn = {
                 "resultCode": "OK"
             }
