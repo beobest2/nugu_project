@@ -273,6 +273,26 @@ class Live():
                         # 낯선 사람 없음
                         action_type = "unknown_now"
                         is_exist = 0
+                        read_msg = self.LAST_SHOW("UNKNOWN")
+                        if read_msg == "0,0":
+                            action_type = "unknown_now"
+                            is_exist = 0
+                            with_in_a_minute = 1
+                            watched = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
+                        elif read_msg is None:
+                            action_type = "unknown_now"
+                            is_exist = -1
+                        else:
+                            print("read_msg: ", read_msg)
+                            rtn_list = read_msg.strip().split(",")
+                            print("rtn_list: ", rtn_list)
+                            hour_ = int(rtn_list[0])
+                            min_ = int(rtn_list[1])
+                            watched = random.choice(["수상한사람", "모르는사람", "처음보는사람"])
+                            if hour_ == 0:
+                                disappear_time = "%d분" % min_
+                            else:
+                                disappear_time = "%d시%d분" % (hour_, min_)
                 elif watched == "ALL":
                     """ FIXME : watched가 'ALL'로 전달되었을때 처리
                     - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
