@@ -29,7 +29,7 @@ class VideoRun():
         self.mysql_table = server_conf.mysql_table
         self.mysql_img_call_table = server_conf.mysql_img_call_table
         self.mysql_img_file_table = server_conf.mysql_img_file_table
-        self.user_email = server_info.user_email
+        self.user_email = server_conf.user_email
         """
         DB : testcam01
         TABLE : testcam01
@@ -62,6 +62,8 @@ class VideoRun():
         # 비디오 서버 재연결 시도 횟수
         self.retry_cnt_max = 5
 
+        self.buffer_write_gap = server_conf.buffer_write_gap
+
     def run_video(self):
         # 얼굴 인식 모델 호출
         face_recog_m = FaceRecog()
@@ -85,11 +87,14 @@ class VideoRun():
             imwrite_flag = False
             img_write_priv_time = time.time()
 
+            bufferwrite_flag = False
+            buffer_write_priv_time = time.time()
+
             while True:
                 frame = camera.get_frame()
                 now_date = datetime.datetime.now()
                 self.now_date = now_date
-                now_str = now_date.strftime("%Y%m%d%H%M%S")
+                now_str = now_date.strftime("%m%d%H%M%S")
 
                 curr_time = time.time()
                 # db 입력 간격 측정
@@ -106,6 +111,13 @@ class VideoRun():
                 else:
                     imwrite_flag = False
 
+                # 버퍼 저장 간격 측정
+                if curr_time - buffer_write_priv_time >= self.buffer_write_gap:
+                    buffer_write_priv_time = curr_time
+                    bufferwrite_flag = True
+                else:
+                    bufferwrite_flag = False
+
                 try:
                     # image write flag check
                     if imwrite_flag:
@@ -114,8 +126,9 @@ class VideoRun():
                         cv2.imwrite(img_write_file, frame)
                         self.img_file_queue.put(img_write_file)
                         # DB INSERT
-                        self._mysql_dml("INSERT INTO %s(DATE, FILE_PATH) VALUES (%s, %s)",
-                                (self.mysql_img_file_table, now_str, img_write_file))
+                        print("insert img path")
+                        sql = "INSERT INTO %s (DATE, FILE_PATH) VALUES " % self.mysql_img_file_table
+                        self._mysql_dml(sql + "(%s, %s)", (int(now_str), img_write_file))
                         print("write img: ", img_write_file)
 
                         # 이미지 파일 개수가 1000개 이상일때 삭제
@@ -123,8 +136,9 @@ class VideoRun():
                             del_img_file = self.img_file_queue.get()
                             os.remove(del_img_file)
                             #  DB DELETE
-                            self._mysql_dml("DELETE FROM %s WHERE FILE_PATH = %s",
-                                (self.mysql_img_file_table, img_write_file))
+                            print("clean call db")
+                            sql = "DELETE FROM %s WHERE FILE_PATH = " % self.mysql_img_file_table
+                            self._mysql_dml(sql + " %s", (img_write_file))
 
                             print("remove img: ", del_img_file)
 
@@ -137,7 +151,9 @@ class VideoRun():
 
                     if insert_flag:
                         # buffer에 축적된 데이터 bulk insert
-                        self.bulk_insert_db(self.mysql_table, self.buffer_list)
+                        #print("bulk insert")
+                        if len(self.buffer_list) > 0:
+                            self.bulk_insert_db(self.mysql_table, self.buffer_list)
                         # buffer 초기화
                         self.buffer_list = []
 
@@ -145,20 +161,23 @@ class VideoRun():
                         # DB SELECT
                         sql = "SELECT DATE_CALL, TIME FROM %s" % self.mysql_img_call_table
                         rows = self._mysql_select(sql)
+                        #print("check img_call", rows)
                         if len(rows) > 0:
                             # 이미지 전송 요청이 들어옴
                             for item in rows:
-                                self.send_img(item)
+                                self.send_img(item["DATE_CALL"], item["TIME"])
                                 # call db DELETE
-                                self._mysql_dml("DELETE FROM %s WHERE DATE_CALL = %s",
-                                        (self.mysql_img_call_table, item[0]))
+                                print("delete call table")
+                                sql = "DELETE FROM %s WHERE DATE_CALL = " % self.mysql_img_call_table
+                                self._mysql_dml(sql + " %s", (item["DATE_CALL"]))
                         else:
                             pass
                     # 영상 분석 데이터 처리
                     for face_result in face_result_list:
                         face_corr = face_result[0]
                         face_name = face_result[1]
-                        self.buffer_list.append((now_str, face_name, str(face_corr)))
+                        if bufferwrite_flag:
+                            self.buffer_list.append((int(now_str), face_name, str(face_corr)))
                     for item in obj_detection_dict:
                         try:
                             obj_corr = item
@@ -166,7 +185,8 @@ class VideoRun():
                             class_list = class_str.split()
                             obj_class = class_list[0][:-1]
                             obj_score = int(class_list[1][:-1])
-                            self.buffer_list.append((now_str, obj_class, str(obj_corr)))
+                            if bufferwrite_flag:
+                                self.buffer_list.append((int(now_str), obj_class, str(obj_corr)))
                         except:
                             pass
                     self.frame = frame
@@ -190,32 +210,39 @@ class VideoRun():
         """
         return 0
 
-    def send_img(self, item):
+    def send_img(self, date_call, call_time):
+        target_plus_ten_str = ""
+        target_minus_ten_str = ""
         # 20181112000000
-        date_call_str = item[0]
-        # 10분 단위의 숫자 (20분, 120분)
-        call_time = int(item[1])
-        # 목표 시간 구하기
-        target_date = None
-        target_date_str = None
-        if call_time == 0:
-            target_date_str = date_call_str
-            target_date = datetime.datetime.strptime(target_date_str, "%Y%m%d%H%M%S")
-        else:
-            call_date = datetime.datetime.strptime(date_call_str, "%Y%m%d%H%M%S")
-            target_date = call_date - datetime.timedelta(minutes=call_time)
-            target_date_str = target_date.strftime("%Y%m%d%H%M%S")
-        target_plus_ten = target_date + datetime.timedelta(minutes=10)
-        target_plus_ten_str = target_plus_ten.strftime("%Y%m%d%H%M%S")
-        target_minus_ten = target_date - datetime.timedelta(minutes=10)
-        target_minus_ten_str = target_minus_ten.strftime("%Y%m%d%H%M%S")
-        # 목표 시간의 +- 10 분 이미지 자료 가져오기 
-        rows = self._mysql_select("SELECT DATE, FILE_PATH FROM %s WHERE DATE <= %s AND DATE >= %s" %
-                (self.mysql_img_file_table, target_plus_ten_str, target_minus_ten_str))
+        try:
+            date_call_str = str(date_call)
+            # 목표 시간 구하기
+            target_date = None
+            target_date_str = None
+            if call_time == 0:
+                target_date_str = date_call_str
+                target_date = datetime.datetime.strptime(target_date_str, "%m%d%H%M%S")
+            else:
+                call_date = datetime.datetime.strptime(date_call_str, "%m%d%H%M%S")
+                print("call_date:", call_date)
+                target_date = call_date - datetime.timedelta(minutes=call_time)
+                print("target_date:", target_date)
+                target_date_str = target_date.strftime("%m%d%H%M%S")
+            target_plus_ten = target_date + datetime.timedelta(minutes=10)
+            target_plus_ten_str = target_plus_ten.strftime("%m%d%H%M%S")
+            target_minus_ten = target_date - datetime.timedelta(minutes=10)
+            target_minus_ten_str = target_minus_ten.strftime("%m%d%H%M%S")
+        except Exception as err:
+            print("$$", err)
+        # 목표 시간의 +- 10 분 이미지 자료 가져오기
+        sql = "SELECT DATE, FILE_PATH FROM %s WHERE " % self.mysql_img_file_table
+        rows = self._mysql_select(sql + " DATE <= %s AND DATE >= %s" % (int(target_plus_ten_str), int(target_minus_ten_str)))
+        print("get +- 10 min img files: ", rows)
         if len(rows) > 0:
             # 값이 있다면
             # FIXME 가장 가까운 시간 찾아서 보내주기
             final_file_path = self.find_simillar_time(int(target_date_str), rows)
+            print("Final send file :", final_file_path)
             self.send_email(final_file_path, self.user_email)
             return True
         else:
@@ -225,8 +252,8 @@ class VideoRun():
         min_gap = 10000000000000
         min_path = ""
         for item in rows:
-            _date = int(item[0])
-            _file_path = item[1]
+            _date = item["DATE"]
+            _file_path = item["FILE_PATH"]
             gap = abs(target_date_num - _date)
             if gap < min_gap:
                 min_gap = gap
@@ -242,9 +269,11 @@ class VideoRun():
 
     def _mysql_dml(self, sql, val=None):
         # INSERT, UPDATE, DELETE
+        #print("SQL: ", sql)
+        #print("VAL: ", val)
         try:
             conn = pymysql.connect(host=self.mysql_host, user=self.mysql_user,
-                    password=self.mysql_password, db=self.mysql_db, charset='utf-8')
+                    password=self.mysql_password, db=self.mysql_db, charset='utf8')
             curs = conn.cursor(pymysql.cursors.DictCursor)
             if val is None:
                 curs.execute(sql)
@@ -265,7 +294,7 @@ class VideoRun():
         rows = []
         try:
             conn = pymysql.connect(host=self.mysql_host, user=self.mysql_user,
-                    password=self.mysql_password, db=self.mysql_db, charset='utf-8')
+                    password=self.mysql_password, db=self.mysql_db, charset='utf8')
             curs = conn.cursor(pymysql.cursors.DictCursor)
             curs.execute(sql)
             rows = curs.fetchall()
@@ -283,15 +312,16 @@ class VideoRun():
         for item in insert_list:
             value_list.append(str(item))
         value_str = ",".join(value_list)
-        sql = "INSERT INTO %s(DATE, CLASS, CORR) VALUES "  % table_name
+        sql = "INSERT INTO %s (DATE, CLASS, CORR) VALUES "  % table_name
         sql = sql + value_str
         self._mysql_dml(sql)
 
     def delete_outdated_data(self):
         base_time = self.now_date - datetime.timedelta(seconds=self.max_db_date)
-        base_time_str = base_time.strftime("%Y%m%d%H%M%S")
-        sql = "DELETE FROM %s WHERE DATE <= %s"
-        self._mysql_dml(sql, (self.mysql_table, base_time_str))
+        base_time_str = base_time.strftime("%m%d%H%M%S")
+        sql = "DELETE FROM %s WHERE DATE <= " % self.mysql_table
+        print("delete outdated data")
+        self._mysql_dml(sql + " %s", (int(base_time_str)))
 
     def run(self):
         self.run_video()

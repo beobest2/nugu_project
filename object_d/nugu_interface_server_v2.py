@@ -51,7 +51,7 @@ class Live():
         return_val = True
         try:
             conn = pymysql.connect(host=self.mysql_host, user=self.mysql_user,
-                    password=self.mysql_password, db=self.mysql_db, charset='utf-8')
+                    password=self.mysql_password, db=self.mysql_db, charset='utf8')
             curs = conn.cursor(pymysql.cursors.DictCursor)
         except Exception as err:
             print(err)
@@ -69,7 +69,7 @@ class Live():
         # INSERT, UPDATE, DELETE
         try:
             conn = pymysql.connect(host=self.mysql_host, user=self.mysql_user,
-                    password=self.mysql_password, db=self.mysql_db, charset='utf-8')
+                    password=self.mysql_password, db=self.mysql_db, charset='utf8')
             curs = conn.cursor(pymysql.cursors.DictCursor)
             if val is None:
                 curs.execute(sql)
@@ -90,7 +90,7 @@ class Live():
         rows = []
         try:
             conn = pymysql.connect(host=self.mysql_host, user=self.mysql_user,
-                    password=self.mysql_password, db=self.mysql_db, charset='utf-8')
+                    password=self.mysql_password, db=self.mysql_db, charset='utf8')
             curs = conn.cursor(pymysql.cursors.DictCursor)
             curs.execute(sql)
             rows = curs.fetchall()
@@ -104,11 +104,12 @@ class Live():
         return rows
 
     def last_check_db(self, target):
-        sql = "SELECT DATE FROM %s WHERE CLASS = '%s' ORDER BY DATE DESC LIMIT 1"
+        sql = "SELECT DATE FROM %s WHERE " % self.mysql_table
+        sql += " CLASS = '%s' ORDER BY DATE DESC LIMIT 1"
         date = None
-        rows = self._mysql_select(sql, (self.mysql_table, target))
+        rows = self._mysql_select(sql, (target))
         if len(rows) >= 1:
-            date = rows[0][0]
+            date = rows[0]["DATE"]
         return date
 
     def LAST_SHOW(self, target):
@@ -120,7 +121,7 @@ class Live():
             pass
         else:
             # calculate time delta
-            last_date = datetime.datetime.strptime(str(last_date_str), '%Y%m%d%H%M%S')
+            last_date = datetime.datetime.strptime(str(last_date_str), '%m%d%H%M%S')
             time_delta = datetime.datetime.now() - last_date
             h = 0
             m = 0
@@ -133,14 +134,15 @@ class Live():
     def SHOW_CURRENT(self):
         now_date = datetime.datetime.now()
         now_min_date = now_date - datetime.timedelta(seconds=60)
-        now_str = now_date.strftime("%Y%m%d%H%M%S")
-        now_min_str = now_min_date.strftime("%Y%m%d%H%M%S")
-        sql = "SELECT CLASS FROM %s WHERE DATE >= %s ORDER BY DATE DESC LIMIT %s"
-        val = (self.mysql_table, now_min_str, self.now_time_range)
+        now_str = now_date.strftime("%m%d%H%M%S")
+        now_min_str = now_min_date.strftime("%m%d%H%M%S")
+        sql = "SELECT CLASS FROM %s WHERE " % self.mysql_table
+        sql += " DATE >= %s ORDER BY DATE DESC LIMIT %s"
+        val = (int(now_min_str), int(self.now_time_range))
         rows = self._mysql_select(sql, val)
         tmp_set = set([])
         for item in rows:
-            tmp_set.add(item[0])
+            tmp_set.add(item["CLASS"])
         rtn_list = []
         for item in tmp_set:
             rtn_list.append(item)
@@ -367,10 +369,11 @@ class Live():
             # example 요청 시간 10분 전
             request_time = 10
             now_date = datetime.datetime.now()
-            now_str = now_date.strftime("%Y%m%d%H%M%S")
+            now_str = now_date.strftime("%m%d%H%M%S")
 
-            sql = "INSERT INTO %s(DATE_CALL, TIME) VALUES (%s, %s)"
-            self._mysql_dml(sql, (self.mysql_img_call_table, now_str, request_time))
+            sql = "INSERT INTO %s (DATE_CALL, TIME) VALUES " % self.mysql_img_call_table
+            sql += " (%s, %s)"
+            self._mysql_dml(sql, (int(now_str), request_time))
             rtn = {
                 "resultCode": "OK"
             }

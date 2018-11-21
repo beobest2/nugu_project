@@ -86,29 +86,31 @@ label_dict = {
 }
 
 # mysql connection info
-mysql_host = "0.0.0.0"
-mysql_user = "nuguuser"
-mysql_password = "nugu321"
+mysql_host = "61.82.116.184"
+mysql_user = "root"
+mysql_password = "tkdnfhs12#$"
 mysql_db = "testcam01"
 mysql_table = "tb"
 mysql_img_call_table = "imgcall"
 mysql_img_file_table = "imgfile"
 
-create_sql_table = "create table tb (DATE int not null, CLASS char(100), CORR char(100), primary key(DATE))"
-create_sql_imgcall_table = "create table imgcall (DATE_CALL int not null, TIME int, primary key(DATE_CALL))"
-create_sql_imgfile_table = "create table imgtable (DATE int not null, FILE_PATH char(100), primary key(DATE))"
+create_sql_table = "create table tb (DATE int not null, CLASS char(100), CORR char(100))"
+create_sql_imgcall_table = "create table imgcall (DATE_CALL int not null, TIME int)"
+create_sql_imgfile_table = "create table imgtable (DATE int not null, FILE_PATH char(100))"
 
-# db 입력 간격(5초)
-db_insert_term = 5
+# db 입력 간격(3초)
+db_insert_term = 3
+# buffer 입력 간격 1초
+buffer_write_gap = 1
 # db file 저장 시간 최대 범위(2 시간)
-max_db_date = 1200
+max_db_date = 120
 
 # img file 저장 최대 개수 (1000장)
 max_img_file_cnt = 100
 # 이미지 파일 저장 경로
 imwrite_path = "./imgfile/"
 # 이미지 파일 저장 시간 간격(10분 마다)
-img_write_gap = 600
+img_write_gap = 60
 
 # proxy server connection info
 proxy_host = '0.0.0.0'
