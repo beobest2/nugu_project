@@ -18,6 +18,7 @@ pip install pillow
 pip install lxml
 pip install jupyter
 pip install matplotlib
+pip install PyMySQL
 ```
 
 - 프로젝트 폴더로 이동
