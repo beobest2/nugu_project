@@ -105,9 +105,9 @@ class Live():
 
     def last_check_db(self, target):
         sql = "SELECT DATE FROM %s WHERE " % self.mysql_table
-        sql += " CLASS = '%s' ORDER BY DATE DESC LIMIT 1"
+        sql += " CLASS = '%s' ORDER BY DATE DESC LIMIT 1" % target
         date = None
-        rows = self._mysql_select(sql, (target))
+        rows = self._mysql_select(sql)
         if len(rows) >= 1:
             date = rows[0]["DATE"]
         return date
@@ -137,9 +137,8 @@ class Live():
         now_str = now_date.strftime("%m%d%H%M%S")
         now_min_str = now_min_date.strftime("%m%d%H%M%S")
         sql = "SELECT CLASS FROM %s WHERE " % self.mysql_table
-        sql += " DATE >= %s ORDER BY DATE DESC LIMIT %s"
-        val = (int(now_min_str), int(self.now_time_range))
-        rows = self._mysql_select(sql, val)
+        sql += " DATE >= %s ORDER BY DATE DESC LIMIT %s" % (int(now_min_str), int(self.now_time_range))
+        rows = self._mysql_select(sql)
         tmp_set = set([])
         for item in rows:
             tmp_set.add(item["CLASS"])
