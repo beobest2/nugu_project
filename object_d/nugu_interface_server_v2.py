@@ -141,6 +141,7 @@ class Live():
         now_min_str = now_min_date.strftime("%m%d%H%M%S")
         sql = "SELECT CLASS FROM %s WHERE " % self.mysql_table
         sql += " DATE >= %s ORDER BY DATE DESC LIMIT %s" % (int(now_min_str), int(self.now_time_range))
+        print("show current  sql: ", sql)
         rows = self._mysql_select(sql)
         tmp_set = set([])
         for item in rows:
