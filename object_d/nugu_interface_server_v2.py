@@ -284,14 +284,14 @@ class Live():
                 print("MIN : ", min_)
                 total_past_min = (hour_ * 60) + min_
                 # 과거
-                if watched == "UNKNOWN":
+                if watched.upper() == "UNKNOWN":
                     """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
                     - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
                     - disappear_time은 1을 할당  
                     - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
                     rtn_list = self.SHOW_PAST(total_past_min)
                     print("rtnl;ist ::::: {}".format(rtn_list))
-                    if "UNKNOWN" in rtn_list:
+                    if "Unknown" in rtn_list:
                         # 낯선 사람 과거 시점에 존재
                         action_type = "unknown_past"
                         is_exist = 1
@@ -300,7 +300,7 @@ class Live():
                         # 낯선 사람 없음
                         action_type = "unknown_past"
                         is_exist = 0
-                elif watched == "ALL":
+                elif watched.upper() == "ALL":
                     """ FIXME : watched가 'ALL'로 전달되었을때 처리
                     - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
                         - ex) 현우, 해준, 컴퓨터, 강아지가 있을 경우
@@ -334,13 +334,13 @@ class Live():
                         is_exist = 0
             else:
                 # 현재
-                if watched == "UNKNOWN":
+                if watched.upper() == "UNKNOWN":
                     """ FIXME : watched가 'UNKNOWN' 으로 전달되었을때 처리
                     - 처음 보는 객체가 발견됐다면, unknown에 해당 객체명 할당 
                     - disappear_time은 1을 할당  
                     - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
                     rtn_list = self.SHOW_CURRENT()
-                    if "UNKNOWN" in rtn_list:
+                    if "Unknown" in rtn_list:
                         # 낯선 사람 지금 존재
                         action_type = "unknown_now"
                         is_exist = 1
@@ -369,7 +369,7 @@ class Live():
                                 disappear_time = "%d분" % min_
                             else:
                                 disappear_time = "%d시%d분" % (hour_, min_)
-                elif watched == "ALL":
+                elif watched.upper() == "ALL":
                     """ FIXME : watched가 'ALL'로 전달되었을때 처리
                     - 해당 시점에 관측된 모든 객체를 'all' 에 문자열 형태로 담아서 리턴
                         - ex) 현우, 해준, 컴퓨터, 강아지가 있을 경우
