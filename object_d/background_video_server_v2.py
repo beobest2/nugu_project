@@ -295,9 +295,6 @@ class VideoRun():
         # 로거 생성
         logger = self.get_logger("sendmail")
 
-        # 파일명에서 날짜만 추출
-        date = re.findall('\d+', file_path)[0]
-
         msg = EmailMessage()
         msg['From'] = 'Sauron Video Server'
         msg['To'] = user_email
@@ -306,6 +303,7 @@ class VideoRun():
         if file_path is None:
             msg.set_content("요청하신 시간에 캡쳐된 사진이 없습니다.")
         else:
+            date = re.findall('\d+', file_path)[0]
             msg.set_content(f'{date[:2]}월 {date[2:4]}일 {date[4:6]}시 {date[6:8]}분 {date[8:10]}초에 캡쳐된 사진입니다.')
             file = open(file_path, 'rb').read()
             msg.add_attachment(file, maintype='text', subtype='plain', filename="{}.jpg".format(date))
