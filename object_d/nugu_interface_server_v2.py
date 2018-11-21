@@ -255,7 +255,8 @@ class Live():
             with_in_a_minute = 0
             is_exist = 0
             action_type = None
-            disappear_time = -99 # default
+            disappear_time = -99 # defaulit
+            watched = ""
             watched = json_data['action']['parameters']['watched']['value']
 
             """ FIXME :  disappear_time에 watched가 마지막으로 존재했던 시간을 할당
