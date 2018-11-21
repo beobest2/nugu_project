@@ -82,7 +82,7 @@ label_dict = {
 
 #  face 등록 정보 추가
 "HYUNWOO" : ["현우", "박현우"],
-"HAEJOON" : ["해준", "이해준"]
+"HAEJOON" : ["해준", "이해준", "해준이"]
 }
 
 # mysql connection info
