@@ -13,7 +13,13 @@ import time
 import queue
 import pymysql
 import server_conf
+import smtplib
+import os
+import re
+import logging
+import configparser
 
+from email.message import EmailMessage
 from object_detection.utils import label_map_util
 from object_detection.utils import visualization_utils as vis_util
 from object_detection.utils import ops as utils_ops
@@ -260,12 +266,55 @@ class VideoRun():
                 min_path = _file_path
         return min_path
 
+    def get_logger(self, logger_name, logging_level=logging.DEBUG):
+        """ 로거를 만들어줌 """
+
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(logging_level)
+        file_handler = logging.FileHandler(f'./logs/{logger_name}.log')
+        formatter = logging.Formatter("[%(levelname)s] '%(filename)s' %(asctime)s : %(message)s")
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+
+        return logger
+
     def send_email(self, file_path, user_email):
         """
         file_path -> "./imgfile/20181212000000.jpg"
         user_email -> ["cleanby@naver.com", "haejoon309@naver.com"]
         """
-        pass
+        conf_path = '../../nugu_conf/nugu.conf'
+
+        config = configparser.ConfigParser()
+        config.read(conf_path)
+
+        admin_email = config.get('EMAIL', 'id')
+        admin_passwd = config.get('EMAIL', 'passwd')
+
+        # 로거 생성
+        logger = self.get_logger("sendmail")
+
+        # 파일명에서 날짜만 추출
+        date = re.findall('\d+', file_path)[0]
+
+        # 이메일 내용 셋팅
+        msg = EmailMessage()
+        msg['Subject'] = '[Sauron] 관측 사진 전송'
+        msg.set_content(
+            f'{date[:4]}년 {date[4:6]}월 {date[6:8]}일 {date[8:10]}시 {date[10:12]}분 {date[12:14]}초에 캡쳐된 사진입니다.')
+        msg['From'] = 'Sauron Video Server'
+        msg['To'] = user_email
+        file = open(file_path, 'rb').read()
+        msg.add_attachment(file, maintype='text', subtype='plain', filename="{}.jpg".format(date))
+
+        # 이메일 서버 셋팅
+        naver_server = smtplib.SMTP_SSL('smtp.naver.com', 465)
+        naver_server.login(admin_email, admin_passwd)
+        naver_server.sendmail(admin_email, user_email, msg.as_string())
+
+        naver_server.quit()
+        logger.debug(f'to {user_email}')
+
 
     def _mysql_dml(self, sql, val=None):
         # INSERT, UPDATE, DELETE
