@@ -455,6 +455,19 @@ class Live():
             except:
                 json_data = None
 
+            total_past_min = 0
+            k_list = json_data['action']['parameters'].keys()
+            if "hour_" in k_list or "min_" in k_list:
+                hour_ = 0
+                min_ = 0
+                if "hour_" in k_list:
+                    hour_ = int(json_data['action']['parameters']['hour_']["value"].split(".")[1])
+                if "min_" in k_list:
+                    min_ = int(json_data['action']['parameters']['min_']["value"])
+                print("HOUR : ", hour_)
+                print("MIN : ", min_)
+                total_past_min = (hour_ * 60) + min_
+
             """ FIXME : 사진을 이메일로 전송한다.
             1. 이메일 주소는 임의로 등록한 값이며, 서버단에서 설정파일등을 통해 처리
             2. 옵션으로 'hour', 'min', 'now' 값이 올 수도 있음
@@ -466,8 +479,7 @@ class Live():
             3. 메일을 보낸후 resultCode를 OK로 보내주면 된다.
             4. 메일 전송이 실패한 경우는 아직 처리하지 않는다.
             """
-            # example 요청 시간 10분 전
-            request_time = 10
+            request_time = total_past_min
             now_date = datetime.datetime.now()
             now_str = now_date.strftime("%m%d%H%M%S")
 
