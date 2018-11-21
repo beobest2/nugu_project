@@ -290,6 +290,7 @@ class Live():
                     - disappear_time은 1을 할당  
                     - 처음 보는 객체가 없다면 disappear_time에 -1을 할당 """
                     rtn_list = self.SHOW_PAST(total_past_min)
+                    print("rtnl;ist ::::: {}".format(rtn_list))
                     if "UNKNOWN" in rtn_list:
                         # 낯선 사람 과거 시점에 존재
                         action_type = "unknown_past"
@@ -307,7 +308,7 @@ class Live():
                         - all = ",".join(detected_list)
                     - disappear_time은 10을 할당
                      """
-                    rtn_list = self.SHOW_PAST()
+                    rtn_list = self.SHOW_PAST(total_past_min)
                     if len(rtn_list) > 0:
                         detected_list = self.detected_list_match(rtn_list)
                         watched = ",".join(detected_list)
@@ -322,7 +323,7 @@ class Live():
                     if watched in self.watched_dict.keys():
                         target = self.watched_dict[watched]
 
-                    rtn_list = self.SHOW_PAST()
+                    rtn_list = self.SHOW_PAST(total_past_min)
                     if target in rtn_list:
                         # 지금 존재
                         action_type = "one_past"
