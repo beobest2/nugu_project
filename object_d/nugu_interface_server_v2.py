@@ -487,7 +487,7 @@ class Live():
             sql += " (%s, %s)"
             self._mysql_dml(sql, (int(now_str), request_time))
             rtn = {
-                "resultCode": "OK",
+                "resultCode": "OK"
             }
 
             print("[answer_capture] json.dumps(rtn) : {}".format(json.dumps(rtn)))
