@@ -68,14 +68,18 @@ class VideoRun():
         # 비디오 서버 재연결 시도 횟수
         self.retry_cnt_max = 5
 
+        # 버퍼에 데이터 담는 시간 간격
         self.buffer_write_gap = server_conf.buffer_write_gap
+
+        # logger
+        self.logger = self.get_logger("video_server")
 
     def run_video(self):
         # 얼굴 인식 모델 호출
         face_recog_m = FaceRecog()
         # 객체 인식 모델 호출
         detector = ObjectDetector('ssd_mobilenet_v1_coco_2017_11_17')
-        print(" ** known faces: ", face_recog_m.known_face_names)
+        self.logger.debug(" ** known faces: " + str( face_recog_m.known_face_names))
 
         # Using OpenCV to capture from device 0. If you have trouble capturing
         # from a webcam, comment the line below out and use a video file
@@ -132,21 +136,21 @@ class VideoRun():
                         cv2.imwrite(img_write_file, frame)
                         self.img_file_queue.put(img_write_file)
                         # DB INSERT
-                        print("insert img path")
+                        self.logger.debug("insert img path")
                         sql = "INSERT INTO %s (DATE, FILE_PATH) VALUES " % self.mysql_img_file_table
                         self._mysql_dml(sql + "(%s, %s)", (int(now_str), img_write_file))
-                        print("write img: ", img_write_file)
+                        self.logger.debug("write img: " + str(img_write_file))
 
                         # 이미지 파일 개수가 1000개 이상일때 삭제
                         if self.img_file_queue.qsize() > self.max_img_file_cnt:
                             del_img_file = self.img_file_queue.get()
                             os.remove(del_img_file)
                             #  DB DELETE
-                            print("clean call db")
+                            self.logger.debug("clean call db")
                             sql = "DELETE FROM %s WHERE FILE_PATH = " % self.mysql_img_file_table
                             self._mysql_dml(sql + " %s", (img_write_file))
 
-                            print("remove img: ", del_img_file)
+                            self.logger.debug("remove img: " + str(del_img_file))
 
                         # DB에서 2시간 이전의 데이터 삭제
                         self.delete_outdated_data()
@@ -173,7 +177,7 @@ class VideoRun():
                             for item in rows:
                                 self.send_img(item["DATE_CALL"], item["TIME"])
                                 # call db DELETE
-                                print("delete call table")
+                                self.logger.debug("delete call table")
                                 sql = "DELETE FROM %s WHERE DATE_CALL = " % self.mysql_img_call_table
                                 self._mysql_dml(sql + " %s", (item["DATE_CALL"]))
                         else:
@@ -188,17 +192,21 @@ class VideoRun():
                         try:
                             obj_corr = item
                             class_str = obj_detection_dict[item][0]
+                            obj_str = ""
                             class_list = class_str.split()
-                            obj_class = class_list[0][:-1]
-                            obj_score = int(class_list[1][:-1])
+                            for idx, st in enumerate(class_list):
+                                if idx < len(class_list) - 1:
+                                    obj_str += " " + st
+                            obj_class = obj_str.strip()[:-1]
+                            obj_score = int(class_list[-1][:-1])
                             if bufferwrite_flag:
                                 self.buffer_list.append((int(now_str), obj_class, str(obj_corr)))
-                        except:
-                            pass
+                        except Exception as err:
+                            self.logger.error("OBJ CLASS : " + str(err))
                     self.frame = frame
                     self.frame_cnt += 1
                 except Exception as err:
-                    print(err)
+                    self.logger.error(str(err))
                     try:
                         camera = VideoCamera(server_conf.camera_source)
                     except:
@@ -230,25 +238,25 @@ class VideoRun():
                 target_date = datetime.datetime.strptime(target_date_str, "%m%d%H%M%S")
             else:
                 call_date = datetime.datetime.strptime(date_call_str, "%m%d%H%M%S")
-                print("call_date:", call_date)
+                self.logger.debug("call_date:" + str(call_date))
                 target_date = call_date - datetime.timedelta(minutes=call_time)
-                print("target_date:", target_date)
+                self.logger.debug("target_date:" + str(target_date))
                 target_date_str = target_date.strftime("%m%d%H%M%S")
             target_plus_ten = target_date + datetime.timedelta(minutes=10)
             target_plus_ten_str = target_plus_ten.strftime("%m%d%H%M%S")
             target_minus_ten = target_date - datetime.timedelta(minutes=10)
             target_minus_ten_str = target_minus_ten.strftime("%m%d%H%M%S")
         except Exception as err:
-            print("$$", err)
+            self.logger.error("send img : " + str(err))
         # 목표 시간의 +- 10 분 이미지 자료 가져오기
         sql = "SELECT DATE, FILE_PATH FROM %s WHERE " % self.mysql_img_file_table
         rows = self._mysql_select(sql + " DATE <= %s AND DATE >= %s" % (int(target_plus_ten_str), int(target_minus_ten_str)))
-        print("get +- 10 min img files: ", rows)
+        self.logger.debug("get +- 10 min img files: " + str(rows))
         if len(rows) > 0:
             # 값이 있다면
             # FIXME 가장 가까운 시간 찾아서 보내주기
             final_file_path = self.find_simillar_time(int(target_date_str), rows)
-            print("Final send file :", final_file_path)
+            self.logger.debug("Final send file : " + str(final_file_path))
             self.send_email(final_file_path, self.user_email)
             return True
         else:
@@ -293,7 +301,7 @@ class VideoRun():
         admin_passwd = config.get('EMAIL', 'passwd')
 
         # 로거 생성
-        logger = self.get_logger("sendmail")
+        logger = self.logger
 
         msg = EmailMessage()
         msg['From'] = 'Sauron Video Server'
@@ -331,7 +339,7 @@ class VideoRun():
                 curs.execute(sql, val)
             conn.commit()
         except Exception as err:
-            print("MYSQL: ", err)
+            self.logger.error("MYSQL: " + set(err))
         finally:
             try:
                 conn.close()
@@ -349,7 +357,7 @@ class VideoRun():
             curs.execute(sql)
             rows = curs.fetchall()
         except Exception as err:
-            print("MYSQL: ", err)
+            self.logger.error("MYSQL: " + str(err))
         finally:
             try:
                 conn.close()
@@ -370,12 +378,12 @@ class VideoRun():
         base_time = self.now_date - datetime.timedelta(seconds=self.max_db_date)
         base_time_str = base_time.strftime("%m%d%H%M%S")
         sql = "DELETE FROM %s WHERE DATE <= " % self.mysql_table
-        print("delete outdated data")
+        self.logger.debug("delete outdated data")
         self._mysql_dml(sql + " %s", (int(base_time_str)))
 
     def run(self):
         self.run_video()
-        print("** activate video server")
+        self.logger.debug("** activate video server")
         while True:
             if self.frame is not None:
                 print("** video server is started")
