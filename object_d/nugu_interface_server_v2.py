@@ -281,7 +281,10 @@ class Live():
                 hour_ = 0
                 min_ = 0
                 if "hour_" in k_list:
-                    hour_ = int(json_data['action']['parameters']['hour_']["value"].split(".")[1])
+                    if json_data['action']['parameters']['hour_']["value"].startswith("D"):
+                        hour_ = int(json_data['action']['parameters']['hour_']["value"].split(".")[1])
+                    else:
+                        hour_ = int(json_data['action']['parameters']['hour_']["value"])
                 if "min_" in k_list:
                     min_ = int(json_data['action']['parameters']['min_']["value"])
                 print("HOUR : ", hour_)
