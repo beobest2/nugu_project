@@ -88,6 +88,7 @@ class VideoRun():
         def func(face_recog_m, detector):
             # camera 호출
             camera = VideoCamera(server_conf.camera_source)
+            width, height = camera.get_size()
 
             retry_cnt = 0
 
@@ -99,6 +100,8 @@ class VideoRun():
 
             bufferwrite_flag = False
             buffer_write_priv_time = time.time()
+
+            ymin, xmax, ymax, xmin = (0, 0, 0, 0)
 
             while True:
                 frame = camera.get_frame()
@@ -158,7 +161,6 @@ class VideoRun():
                     # 이미지 처리
                     frame, face_result_list = face_recog_m.get_frame_live(frame)
                     frame, obj_detection_dict = detector.detect_objects_live(frame)
-
                     if insert_flag:
                         # buffer에 축적된 데이터 bulk insert
                         #print("bulk insert")
@@ -185,12 +187,16 @@ class VideoRun():
                     # 영상 분석 데이터 처리
                     for face_result in face_result_list:
                         face_corr = face_result[0]
+                        ymin, xmax, ymax, xmin = face_corr
+                        face_corr = (4*ymin, 4*xmax, 4*ymax, 4*xmin)
                         face_name = face_result[1]
                         if bufferwrite_flag:
                             self.buffer_list.append((int(now_str), face_name, str(face_corr)))
                     for item in obj_detection_dict:
                         try:
-                            obj_corr = item
+                            # 검출 좌표 계산
+                            ymin, xmin, ymax, xmax = item
+                            obj_corr_final = (int(height*ymin) , int(width*xmax), int(height*ymax), int(width*xmin))
                             class_str = obj_detection_dict[item][0]
                             obj_str = ""
                             class_list = class_str.split()
@@ -200,7 +206,7 @@ class VideoRun():
                             obj_class = obj_str.strip()[:-1]
                             obj_score = int(class_list[-1][:-1])
                             if bufferwrite_flag:
-                                self.buffer_list.append((int(now_str), obj_class, str(obj_corr)))
+                                self.buffer_list.append((int(now_str), obj_class, str(obj_corr_final)))
                         except Exception as err:
                             self.logger.error("OBJ CLASS : " + str(err))
                     self.frame = frame
@@ -728,6 +734,10 @@ class VideoCamera(object):
         # Grab a single frame of video
         ret, frame = self.video.read()
         return frame
+
+    def get_size(self):
+        return (self.video.get(cv2.CAP_PROP_FRAME_WIDTH),
+                self.video.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 
 if __name__ == '__main__':
