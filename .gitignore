@@ -9,4 +9,4 @@ __pycache__
 *.dat
 *.png
 *.log
-logs/sendmail.log
+object_d/logs/sendmail.log
