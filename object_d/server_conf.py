@@ -82,7 +82,13 @@ label_dict = {
 
 #  face 등록 정보 추가
 "HYUNWOO" : ["현우", "박현우"],
-"HAEJOON" : ["해준", "이해준", "해준이"]
+"HAEJOON" : ["해준", "이해준", "해준이"],
+"iu" : ["아이유"],
+"bogum" : ["박보검"],
+"jaesuk" : ["유재석"],
+"madong" : ["마동석"],
+"sulhyun" : ["설현"],
+"suzi" : ["수지"]
 }
 
 # mysql connection info
