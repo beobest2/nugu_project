@@ -122,6 +122,9 @@ img_write_gap = 60
 proxy_host = '0.0.0.0'
 proxy_port = 5060
 
+# liver server가 동작하는 포트
+live_port = 5050
+
 # 현재 시간이라고 볼수있는 시간 범위
 now_time_range = 40
 # 과거 특정 시점 질문시 +-10 분 조회 

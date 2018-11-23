@@ -8,6 +8,7 @@ class VideoCamera(object):
         # from a webcam, comment the line below out and use a video file
         # instead.
         # WINDOW
+        print("0")
         self.video = cv2.VideoCapture(0)
         # MAC
         #self.video = cv2.VideoCapture("/Users/hwpark/Desktop/test.mp4")
